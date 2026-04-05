@@ -14,7 +14,7 @@ const {
 const CommandContext = require("./structures/CommandContext");
 
 const TOKEN = process.env.DISCORD_TOKEN;
-const PREFIX = process.env.PREFIX || "!";
+const PREFIX = process.env.PREFIX || ".";
 
 if (!TOKEN) {
   throw new Error("Missing DISCORD_TOKEN in .env");
@@ -59,7 +59,7 @@ function getAllJsFiles(dir, fileList = []) {
 }
 // test
 function loadCommands() {
-  const commandsPath = path.join(__dirname, "commands", "shared");
+  const commandsPath = path.join(__dirname, "structures", "commands", "shared");
   const files = getAllJsFiles(commandsPath);
 
   for (const file of files) {

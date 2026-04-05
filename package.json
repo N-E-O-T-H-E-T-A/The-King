@@ -1,4 +1,10 @@
 {
+  "liko": "The-King",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node index.js",
+    "deploy": "node structures/deploy-commands.js"
+  },
   "dependencies": {
     "discord.js": "^14.26.2",
     "dotenv": "^17.4.0",
