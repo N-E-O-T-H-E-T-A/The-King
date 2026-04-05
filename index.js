@@ -57,7 +57,7 @@ function getAllJsFiles(dir, fileList = []) {
 
   return fileList;
 }
-
+// test
 function loadCommands() {
   const commandsPath = path.join(__dirname, "commands", "shared");
   const files = getAllJsFiles(commandsPath);
