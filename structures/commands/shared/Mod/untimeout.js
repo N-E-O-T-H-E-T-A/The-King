@@ -1,5 +1,6 @@
 const { PermissionFlagsBits } = require("discord.js");
 const modResponse = require("../../../helpers/modResponses");
+const { createCaseAndLog } = require("../../../helpers/modlog");
 
 module.exports = {
   name: "untimeout",
@@ -56,10 +57,21 @@ module.exports = {
         }
 
         let count = 0;
+
         for (const [, member] of timedOut) {
           if (!member.moderatable) continue;
+
           await member.timeout(null, reason).catch(() => null);
           count++;
+
+          await createCaseAndLog(ctx.client, {
+            guild: ctx.guild,
+            targetUser: member.user,
+            moderatorUser: ctx.user,
+            actionType: "untimeout",
+            reason,
+            active: 0,
+          });
         }
 
         return ctx.reply(modResponse("success", "untimeoutAll", { count }));
@@ -75,6 +87,16 @@ module.exports = {
       }
 
       await member.timeout(null, reason).catch(() => null);
+
+      await createCaseAndLog(ctx.client, {
+        guild: ctx.guild,
+        targetUser: user,
+        moderatorUser: ctx.user,
+        actionType: "untimeout",
+        reason,
+        active: 0,
+      });
+
       return ctx.reply(modResponse("success", "untimeout", { userTag: user.tag }));
     }
 
@@ -95,10 +117,21 @@ module.exports = {
       }
 
       let count = 0;
+
       for (const [, member] of timedOut) {
         if (!member.moderatable) continue;
+
         await member.timeout(null, reason).catch(() => null);
         count++;
+
+        await createCaseAndLog(ctx.client, {
+          guild: ctx.guild,
+          targetUser: member.user,
+          moderatorUser: ctx.user,
+          actionType: "untimeout",
+          reason,
+          active: 0,
+        });
       }
 
       return ctx.reply(modResponse("success", "untimeoutAll", { count }));
@@ -120,6 +153,16 @@ module.exports = {
     }
 
     await member.timeout(null, reason).catch(() => null);
+
+    await createCaseAndLog(ctx.client, {
+      guild: ctx.guild,
+      targetUser,
+      moderatorUser: ctx.user,
+      actionType: "untimeout",
+      reason,
+      active: 0,
+    });
+
     return ctx.reply(modResponse("success", "untimeout", { userTag: targetUser.tag }));
   },
 };

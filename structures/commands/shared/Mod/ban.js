@@ -1,7 +1,8 @@
 const { PermissionFlagsBits } = require("discord.js");
 const parseDuration = require("../../../helpers/parseDuration");
 const modResponse = require("../../../helpers/modResponses");
-const { scheduleTempUnban } = require("../../../helpers/tempBanScheduler");
+const { createPersistentTempBan } = require("../../../helpers/tempBanScheduler");
+const { createCaseAndLog } = require("../../../helpers/modlog");
 
 module.exports = {
   name: "ban",
@@ -55,11 +56,6 @@ module.exports = {
         return ctx.reply(modResponse("error", "userNotFound"));
       }
 
-      // Prefix formats:
-      // ,ban @user
-      // ,ban @user reason here
-      // ,ban @user 5h
-      // ,ban @user 7d raid spam
       const maybeDuration = ctx.args[1] || null;
       const parsedMaybeDuration = maybeDuration ? parseDuration(maybeDuration) : null;
 
@@ -103,13 +99,27 @@ module.exports = {
       }
 
       await ctx.guild.members.ban(targetUser.id, { reason });
-      scheduleTempUnban(
-        ctx.client,
-        ctx.guild.id,
-        targetUser.id,
+
+      const tempbanRecord = createPersistentTempBan(ctx.client, {
+        guildId: ctx.guild.id,
+        userId: targetUser.id,
+        moderatorId: ctx.user.id,
+        reason,
         durationMs,
-        `Temporary ban expired: ${reason}`
-      );
+      });
+
+      await createCaseAndLog(ctx.client, {
+        guild: ctx.guild,
+        targetUser,
+        moderatorUser: ctx.user,
+        actionType: "tempban",
+        reason,
+        expiresAt: tempbanRecord.expires_at,
+        active: 1,
+        metadata: {
+          Duration: durationInput,
+        },
+      });
 
       return ctx.reply(
         modResponse("success", "tempban", {
@@ -121,6 +131,15 @@ module.exports = {
     }
 
     await ctx.guild.members.ban(targetUser.id, { reason });
+
+    await createCaseAndLog(ctx.client, {
+      guild: ctx.guild,
+      targetUser,
+      moderatorUser: ctx.user,
+      actionType: "ban",
+      reason,
+      active: 1,
+    });
 
     return ctx.reply(
       modResponse("success", "ban", {

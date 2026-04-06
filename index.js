@@ -11,7 +11,10 @@ const {
 } = require("discord.js");
 
 const CommandContext = require("./structures/CommandContext");
+const initDatabase = require("./database/init");
+const { restoreTempBans } = require("./structures/helpers/tempBanScheduler");
 const { buildHelpMap } = require("./structures/helpers/buildHelpData");
+const { canUseCommandByConfiguredRoles } = require("./structures/helpers/commandRoleAccess");
 
 const TOKEN = process.env.DISCORD_TOKEN;
 const PREFIX = process.env.PREFIX || ",";
@@ -62,6 +65,9 @@ function loadCommands() {
   const commandsPath = path.join(__dirname, "structures", "commands", "shared");
   const files = getAllJsFiles(commandsPath);
 
+  console.log("[DEBUG] commandsPath:", commandsPath);
+  console.log("[DEBUG] files found:", files);
+
   for (const file of files) {
     try {
       delete require.cache[require.resolve(file)];
@@ -73,7 +79,6 @@ function loadCommands() {
       }
 
       const commandName = command.name.toLowerCase();
-
       const relativePath = path.relative(commandsPath, file);
       const parts = relativePath.split(path.sep);
 
@@ -90,7 +95,8 @@ function loadCommands() {
 
       console.log(`[COMMAND] Loaded ${commandName} (${command.category})`);
     } catch (error) {
-      console.error(`[COMMAND] Failed loading ${file}`, error);
+      console.error(`[COMMAND] Failed loading ${file}`);
+      console.error(error);
     }
   }
 }
@@ -154,6 +160,37 @@ async function runSharedCommand(source, type, command, args = []) {
   });
 
   try {
+    // Custom command role access
+    if (ctx.guild && ctx.member && !command.adminOnly) {
+      const access = canUseCommandByConfiguredRoles(
+        ctx.member,
+        ctx.guild,
+        command.name
+      );
+
+      if (!access.allowed) {
+        if (type === "slash") {
+          if (source.replied || source.deferred) {
+            await source.followUp({
+              content: "You don't have an allowed role for that command.",
+              ephemeral: true,
+              allowedMentions: { parse: [] },
+            }).catch(() => {});
+          } else {
+            await source.reply({
+              content: "You don't have an allowed role for that command.",
+              ephemeral: true,
+              allowedMentions: { parse: [] },
+            }).catch(() => {});
+          }
+        } else {
+          await source.reply("You don't have an allowed role for that command.").catch(() => {});
+        }
+
+        return;
+      }
+    }
+
     await command.run(ctx);
   } catch (error) {
     console.error(`[COMMAND ERROR] ${command.name}`, error);
@@ -180,9 +217,15 @@ async function runSharedCommand(source, type, command, args = []) {
   }
 }
 
-client.once(Events.ClientReady, (readyClient) => {
+client.once(Events.ClientReady, async (readyClient) => {
   console.log(`✅ READY as ${readyClient.user.tag}`);
   console.log(`[DEBUG] Loaded command names: ${[...client.commands.keys()].join(", ")}`);
+
+  try {
+    await restoreTempBans(client);
+  } catch (error) {
+    console.error("[TEMPBAN RESTORE ERROR]", error);
+  }
 });
 
 client.on("error", (err) => {
@@ -206,11 +249,25 @@ client.on(Events.InteractionCreate, async (interaction) => {
     // Slash commands
     if (interaction.isChatInputCommand()) {
       const command = client.commands.get(interaction.commandName);
-
       if (!command || !command.slash) return;
 
       await runSharedCommand(interaction, "slash", command);
       return;
+    }
+
+    // Command roles panel handling
+    if (
+      interaction.isStringSelectMenu() ||
+      interaction.isRoleSelectMenu() ||
+      interaction.isButton()
+    ) {
+      if (interaction.customId.startsWith("cmdroles:")) {
+        const commandRolesCommand = client.commands.get("commandroles");
+        if (commandRolesCommand?.handleComponent) {
+          await commandRolesCommand.handleComponent(interaction, client);
+        }
+        return;
+      }
     }
 
     // Help select menu
@@ -292,7 +349,6 @@ client.on(Events.MessageCreate, async (message) => {
 
     const parts = raw.split(/\s+/);
     const trigger = parts.shift()?.toLowerCase();
-
     if (!trigger) return;
 
     const commandName = client.commands.has(trigger)
@@ -310,6 +366,7 @@ client.on(Events.MessageCreate, async (message) => {
   }
 });
 
+initDatabase();
 loadCommands();
 loadEvents();
 loadFeatures();

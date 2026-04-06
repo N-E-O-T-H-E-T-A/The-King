@@ -1,6 +1,7 @@
 const { PermissionFlagsBits } = require("discord.js");
 const parseDuration = require("../../../helpers/parseDuration");
 const modResponse = require("../../../helpers/modResponses");
+const { createCaseAndLog } = require("../../../helpers/modlog");
 
 module.exports = {
   name: "timeout",
@@ -81,6 +82,21 @@ module.exports = {
     }
 
     await member.timeout(durationMs, reason);
+
+    const expiresAt = Math.floor((Date.now() + durationMs) / 1000);
+
+    await createCaseAndLog(ctx.client, {
+      guild: ctx.guild,
+      targetUser,
+      moderatorUser: ctx.user,
+      actionType: "timeout",
+      reason,
+      expiresAt,
+      active: 1,
+      metadata: {
+        Duration: durationInput,
+      },
+    });
 
     return ctx.reply(
       modResponse("success", "timeout", {
