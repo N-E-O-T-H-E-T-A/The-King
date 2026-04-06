@@ -1,5 +1,74 @@
-console.log("PATH TEST:", __dirname);
 const db = require("../../../database/db");
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS message_logs (
+    message_id TEXT PRIMARY KEY,
+    guild_id TEXT NOT NULL,
+    channel_id TEXT NOT NULL,
+    author_id TEXT NOT NULL,
+    author_tag TEXT,
+    content TEXT,
+    attachment_urls TEXT,
+    created_at INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_message_logs_channel_id
+  ON message_logs(channel_id);
+
+  CREATE INDEX IF NOT EXISTS idx_message_logs_author_id
+  ON message_logs(author_id);
+
+  CREATE INDEX IF NOT EXISTS idx_message_logs_created_at
+  ON message_logs(created_at);
+
+  CREATE TABLE IF NOT EXISTS deleted_messages (
+    message_id TEXT PRIMARY KEY,
+    guild_id TEXT NOT NULL,
+    channel_id TEXT NOT NULL,
+    author_id TEXT NOT NULL,
+    author_tag TEXT,
+    content TEXT,
+    attachment_urls TEXT,
+    created_at INTEGER,
+    deleted_at INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_deleted_messages_channel_id
+  ON deleted_messages(channel_id);
+
+  CREATE INDEX IF NOT EXISTS idx_deleted_messages_author_id
+  ON deleted_messages(author_id);
+
+  CREATE INDEX IF NOT EXISTS idx_deleted_messages_deleted_at
+  ON deleted_messages(deleted_at);
+
+  CREATE TABLE IF NOT EXISTS edited_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    message_id TEXT NOT NULL,
+    guild_id TEXT NOT NULL,
+    channel_id TEXT NOT NULL,
+    author_id TEXT NOT NULL,
+    author_tag TEXT,
+    old_content TEXT,
+    new_content TEXT,
+    old_attachment_urls TEXT,
+    new_attachment_urls TEXT,
+    created_at INTEGER,
+    edited_at INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_edited_messages_message_id
+  ON edited_messages(message_id);
+
+  CREATE INDEX IF NOT EXISTS idx_edited_messages_channel_id
+  ON edited_messages(channel_id);
+
+  CREATE INDEX IF NOT EXISTS idx_edited_messages_author_id
+  ON edited_messages(author_id);
+
+  CREATE INDEX IF NOT EXISTS idx_edited_messages_edited_at
+  ON edited_messages(edited_at);
+`);
 
 const insertMessageLogStmt = db.prepare(`
   INSERT OR REPLACE INTO message_logs (

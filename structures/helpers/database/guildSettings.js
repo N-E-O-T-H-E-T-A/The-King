@@ -11,9 +11,14 @@ db.exec(`
 `);
 
 const columns = db.prepare(`PRAGMA table_info(guild_settings)`).all();
-const hasPurgeArchiveColumn = columns.some((c) => c.name === "purge_archive_channel_id");
+const hasModLog = columns.some((c) => c.name === "mod_log_channel_id");
+const hasPurgeArchive = columns.some((c) => c.name === "purge_archive_channel_id");
 
-if (!hasPurgeArchiveColumn) {
+if (!hasModLog) {
+  db.exec(`ALTER TABLE guild_settings ADD COLUMN mod_log_channel_id TEXT`);
+}
+
+if (!hasPurgeArchive) {
   db.exec(`ALTER TABLE guild_settings ADD COLUMN purge_archive_channel_id TEXT`);
 }
 
