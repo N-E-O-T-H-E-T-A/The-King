@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Environment variables (secrets)
+.env
+
+# Database files
+database/king.db
+database/*.db
+database/*.db-shm
+database/*.db-wal
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
