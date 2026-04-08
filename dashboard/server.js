@@ -3,6 +3,14 @@ const session = require("express-session");
 const path = require("node:path");
 const crypto = require("node:crypto");
 
+console.log("ENV CHECK", {
+  CLIENT_ID: !!process.env.CLIENT_ID,
+  CLIENT_SECRET: !!process.env.CLIENT_SECRET,
+  SESSION_SECRET: !!process.env.SESSION_SECRET,
+  DASHBOARD_REDIRECT_URI: process.env.DASHBOARD_REDIRECT_URI,
+  PORT: process.env.PORT,
+});
+
 const {
   getGuildSettings,
   setModLogChannel,
