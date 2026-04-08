@@ -1,10 +1,11 @@
 CREATE TABLE IF NOT EXISTS guild_settings (
   guild_id TEXT PRIMARY KEY,
-  prefix TEXT DEFAULT ',',
   mod_log_channel_id TEXT,
   purge_archive_channel_id TEXT,
-  created_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+  prefix TEXT
 );
+
+ALTER TABLE guild_settings ADD COLUMN prefix TEXT;
 
 CREATE TABLE IF NOT EXISTS mod_cases (
   case_id INTEGER PRIMARY KEY AUTOINCREMENT,

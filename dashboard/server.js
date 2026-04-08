@@ -7,6 +7,7 @@ const {
   getGuildSettings,
   setModLogChannel,
   setPurgeArchiveChannel,
+  setGuildPrefix,
 } = require("../structures/helpers/database/guildSettings");
 const {
   getJailSettings,
@@ -444,12 +445,13 @@ function startDashboard(client) {
       return res.status(404).json({ error: "Guild not found" });
     }
 
-    const {
-      modLogChannelId,
-      purgeArchiveChannelId,
-      jailChannelId,
-      jailRoleId,
-    } = req.body;
+   const {
+  modLogChannelId,
+  purgeArchiveChannelId,
+  jailChannelId,
+  jailRoleId,
+  prefix,
+} = req.body;
 
     try {
       if (modLogChannelId !== undefined) {
