@@ -18,6 +18,17 @@ const {
   setAllowedRoleIds,
   clearAllowedRoleIds,
 } = require("../structures/helpers/database/commandRoles");
+const {
+  getAnalyticsSummary,
+  getMessageTrend,
+  getTopChannels,
+  getTopUsers,
+  getTopCommands,
+  getCommandTrend,
+  getModerationTrend,
+  getRecentModerationActions,
+  getVoiceLeaderboard,
+} = require("../structures/helpers/database/analytics");
 
 const DISCORD_API = "https://discord.com/api/v10";
 const ADMINISTRATOR_BIT = BigInt(0x8);
@@ -220,6 +231,84 @@ function startDashboard(client) {
     }
   }
 
+  function parseDays(req, fallback = 30) {
+    const raw = Number(req.query.days);
+    if (!Number.isFinite(raw)) return fallback;
+    return Math.max(1, Math.min(90, Math.floor(raw)));
+  }
+
+  function enrichTopChannels(guildId, rows) {
+    const guild = client.guilds.cache.get(guildId);
+
+    return rows.map((row) => {
+      const channel = guild?.channels?.cache?.get(row.channelId);
+      return {
+        channelId: row.channelId,
+        name: channel?.name || `Unknown Channel (${row.channelId})`,
+        total: row.total,
+      };
+    });
+  }
+
+  function enrichTopUsers(guildId, rows) {
+    const guild = client.guilds.cache.get(guildId);
+
+    return rows.map((row) => {
+      const member = guild?.members?.cache?.get(row.userId);
+      return {
+        userId: row.userId,
+        name:
+          member?.displayName ||
+          member?.user?.globalName ||
+          member?.user?.username ||
+          `Unknown User (${row.userId})`,
+        total: row.total,
+      };
+    });
+  }
+
+  function enrichVoiceUsers(guildId, rows) {
+    const guild = client.guilds.cache.get(guildId);
+
+    return rows.map((row) => {
+      const member = guild?.members?.cache?.get(row.userId);
+      return {
+        userId: row.userId,
+        name:
+          member?.displayName ||
+          member?.user?.globalName ||
+          member?.user?.username ||
+          `Unknown User (${row.userId})`,
+        totalSeconds: row.totalSeconds,
+      };
+    });
+  }
+
+  function enrichRecentModeration(guildId, rows) {
+    const guild = client.guilds.cache.get(guildId);
+
+    return rows.map((row) => {
+      const moderator = guild?.members?.cache?.get(row.moderatorId || "");
+      const target = guild?.members?.cache?.get(row.targetId || "");
+
+      return {
+        ...row,
+        moderatorName:
+          moderator?.displayName ||
+          moderator?.user?.globalName ||
+          moderator?.user?.username ||
+          row.moderatorId ||
+          "Unknown",
+        targetName:
+          target?.displayName ||
+          target?.user?.globalName ||
+          target?.user?.username ||
+          row.targetId ||
+          "Unknown",
+      };
+    });
+  }
+
   app.get("/auth/login", (req, res) => {
     const state = crypto.randomBytes(24).toString("hex");
     req.session.oauthState = state;
@@ -379,13 +468,10 @@ function startDashboard(client) {
         setJailChannel(guildId, jailChannelId || null);
       }
 
-      const updatedGuildSettings = getGuildSettings(guildId);
-      const updatedJailSettings = getJailSettings(guildId);
-
       return res.json({
         ok: true,
-        settings: updatedGuildSettings,
-        jail: updatedJailSettings,
+        settings: getGuildSettings(guildId),
+        jail: getJailSettings(guildId),
       });
     } catch (error) {
       console.error("[DASHBOARD SAVE SETTINGS ERROR]", error);
@@ -445,7 +531,6 @@ function startDashboard(client) {
 
     try {
       const cleanedRoleIds = roleIds.filter((id) => guild.roles.cache.has(id));
-
       setAllowedRoleIds(guildId, commandName, cleanedRoleIds);
 
       return res.json({
@@ -490,6 +575,98 @@ function startDashboard(client) {
         ok: false,
         error: "Failed to clear role permissions",
       });
+    }
+  });
+
+  app.get("/api/guild/:id/analytics/summary", requireAuth, requireGuildAccess, (req, res) => {
+    try {
+      const days = parseDays(req, 30);
+      res.json(getAnalyticsSummary(req.params.id, days));
+    } catch (error) {
+      console.error("[ANALYTICS SUMMARY ERROR]", error);
+      res.status(500).json({ error: "Failed to load analytics summary" });
+    }
+  });
+
+  app.get("/api/guild/:id/analytics/messages", requireAuth, requireGuildAccess, (req, res) => {
+    try {
+      const days = parseDays(req, 30);
+      res.json({
+        days,
+        series: getMessageTrend(req.params.id, days),
+      });
+    } catch (error) {
+      console.error("[ANALYTICS MESSAGES ERROR]", error);
+      res.status(500).json({ error: "Failed to load message analytics" });
+    }
+  });
+
+  app.get("/api/guild/:id/analytics/channels", requireAuth, requireGuildAccess, (req, res) => {
+    try {
+      const days = parseDays(req, 30);
+      const rows = getTopChannels(req.params.id, days, 8);
+      res.json({
+        days,
+        rows: enrichTopChannels(req.params.id, rows),
+      });
+    } catch (error) {
+      console.error("[ANALYTICS CHANNELS ERROR]", error);
+      res.status(500).json({ error: "Failed to load channel analytics" });
+    }
+  });
+
+  app.get("/api/guild/:id/analytics/users", requireAuth, requireGuildAccess, (req, res) => {
+    try {
+      const days = parseDays(req, 30);
+      const rows = getTopUsers(req.params.id, days, 8);
+      res.json({
+        days,
+        rows: enrichTopUsers(req.params.id, rows),
+      });
+    } catch (error) {
+      console.error("[ANALYTICS USERS ERROR]", error);
+      res.status(500).json({ error: "Failed to load user analytics" });
+    }
+  });
+
+  app.get("/api/guild/:id/analytics/commands", requireAuth, requireGuildAccess, (req, res) => {
+    try {
+      const days = parseDays(req, 30);
+      res.json({
+        days,
+        top: getTopCommands(req.params.id, days, 8),
+        series: getCommandTrend(req.params.id, days),
+      });
+    } catch (error) {
+      console.error("[ANALYTICS COMMANDS ERROR]", error);
+      res.status(500).json({ error: "Failed to load command analytics" });
+    }
+  });
+
+  app.get("/api/guild/:id/analytics/moderation", requireAuth, requireGuildAccess, (req, res) => {
+    try {
+      const days = parseDays(req, 30);
+      res.json({
+        days,
+        series: getModerationTrend(req.params.id, days),
+        recent: enrichRecentModeration(req.params.id, getRecentModerationActions(req.params.id, 10)),
+      });
+    } catch (error) {
+      console.error("[ANALYTICS MODERATION ERROR]", error);
+      res.status(500).json({ error: "Failed to load moderation analytics" });
+    }
+  });
+
+  app.get("/api/guild/:id/analytics/voice", requireAuth, requireGuildAccess, (req, res) => {
+    try {
+      const days = parseDays(req, 30);
+      res.json({
+        days,
+        rows: enrichVoiceUsers(req.params.id, getVoiceLeaderboard(req.params.id, days, 8)),
+      });
+    } catch (error) {
+      console.error("[ANALYTICS VOICE ERROR]", error);
+      res.status(500).json({ error: "Failed to load voice analytics" });
     }
   });
 

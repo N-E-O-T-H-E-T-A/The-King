@@ -1,413 +1,252 @@
 const Dashboard = (() => {
-  const state = {
-    me: null,
-    guilds: [],
-    selectedGuildId: null,
-    selectedGuildData: null,
-    currentPage: "home",
+  const state = { me: null, guilds: [], guildId: null, guild: null };
+
+  const $ = (id) => document.getElementById(id);
+  const esc = (v) => String(v ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+
+  const api = async (url, options = {}) => {
+    const res = await fetch(url, options);
+    const ct = res.headers.get("content-type") || "";
+    const data = ct.includes("application/json") ? await res.json() : await res.text();
+    if (!res.ok) throw new Error(typeof data === "object" ? data.error || "Request failed" : data);
+    return data;
   };
 
-  function qs(id) {
-    return document.getElementById(id);
-  }
+  const fmtUptime = (s = 0) => {
+    s = Math.floor(s);
+    const d = Math.floor(s / 86400);
+    const h = Math.floor((s % 86400) / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    return [d && `${d}d`, h && `${h}h`, m && `${m}m`, `${sec}s`].filter(Boolean).join(" ");
+  };
 
-  function escapeHtml(text) {
-    return String(text ?? "")
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
-  }
+  const fmtDur = (s = 0) => {
+    s = Math.floor(s);
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    return h > 0 ? `${h}h ${m}m` : `${m}m`;
+  };
 
-  function formatUptime(seconds) {
-    const total = Math.floor(seconds || 0);
-    const days = Math.floor(total / 86400);
-    const hours = Math.floor((total % 86400) / 3600);
-    const minutes = Math.floor((total % 3600) / 60);
-    const secs = total % 60;
+  const route = () => {
+    const p = location.pathname.split("/").filter(Boolean);
+    if (p[0] === "guild" && p[1]) return { type: "guild", id: p[1], page: p[2] || "overview" };
+    return { type: "home" };
+  };
 
-    const parts = [];
-    if (days) parts.push(`${days}d`);
-    if (hours) parts.push(`${hours}h`);
-    if (minutes) parts.push(`${minutes}m`);
-    parts.push(`${secs}s`);
-    return parts.join(" ");
-  }
+  const go = (path) => { history.pushState({}, "", path); render(); };
+  const goHome = () => go("/");
+  const goGuildPage = (page, id = state.guildId) => id && go(`/guild/${id}/${page}`);
 
-  function makeOption(value, label, selectedValue = null) {
-    const option = document.createElement("option");
-    option.value = value ?? "";
-    option.textContent = label;
-    if ((selectedValue ?? "") === (value ?? "")) option.selected = true;
-    return option;
-  }
+  const setTop = (title, subtitle, crumb, save = false, back = false) => {
+    $("pageTitle").textContent = title;
+    $("pageSubtitle").textContent = subtitle;
+    $("breadcrumb").textContent = crumb;
+    $("saveButton").style.display = save ? "inline-flex" : "none";
+    $("backButton").style.display = back ? "inline-flex" : "none";
+  };
 
-  function setSaveStatus(text, type = "") {
-    const el = qs("saveStatus");
-    if (!el) return;
-    el.textContent = text;
-    el.className = `saveStatus ${type}`.trim();
-  }
+  const activeNav = (page = null) => {
+    document.querySelectorAll(".navItem").forEach((n) => n.classList.remove("active"));
+    if (!page && location.pathname === "/") document.querySelector('.navItem[data-route="/"]')?.classList.add("active");
+    if (page) document.querySelector(`.navItem[data-page="${page}"]`)?.classList.add("active");
+    $("guildNavGroup").style.display = state.guildId ? "flex" : "none";
+  };
 
-  function closeAllCustomSelects(except = null) {
-    document.querySelectorAll(".customSelect").forEach((select) => {
-      if (select !== except) {
-        select.classList.remove("open");
-      }
-    });
-  }
+  const closeSelects = (except = null) => {
+    document.querySelectorAll(".customSelect").forEach((el) => { if (el !== except) el.classList.remove("open"); });
+  };
 
-  function buildCustomSelect(selectId, onChangeCallback = null) {
-    const select = qs(selectId);
-    const mount = qs(`${selectId}_custom`);
+  const makeOption = (value, label, selected = null) => {
+    const o = document.createElement("option");
+    o.value = value ?? "";
+    o.textContent = label;
+    if ((selected ?? "") === (value ?? "")) o.selected = true;
+    return o;
+  };
+
+  function buildSelect(id, onChange = null) {
+    const select = $(id), mount = $(`${id}_custom`);
     if (!select || !mount) return;
-
-    const selectedOption = select.options[select.selectedIndex] || select.options[0];
-    const options = [...select.options];
+    const opts = [...select.options];
+    const cur = opts[select.selectedIndex] || opts[0];
 
     mount.innerHTML = `
       <div class="customSelect">
         <button type="button" class="customSelectTrigger">
-          <span class="customSelectValue">${escapeHtml(selectedOption ? selectedOption.textContent : "None")}</span>
+          <span class="customSelectValue">${esc(cur ? cur.textContent : "None")}</span>
           <span class="customSelectArrow">▾</span>
         </button>
         <div class="customSelectMenu">
           <div class="customSelectSearchWrap">
-            <input type="text" class="customSelectSearch" placeholder="Search..." />
+            <input class="customSelectSearch" type="text" placeholder="Search..." />
           </div>
           <div class="customSelectOptions"></div>
         </div>
       </div>
     `;
 
-    const wrapper = mount.querySelector(".customSelect");
+    const wrap = mount.querySelector(".customSelect");
     const trigger = mount.querySelector(".customSelectTrigger");
-    const valueText = mount.querySelector(".customSelectValue");
-    const optionsWrap = mount.querySelector(".customSelectOptions");
+    const value = mount.querySelector(".customSelectValue");
     const search = mount.querySelector(".customSelectSearch");
+    const list = mount.querySelector(".customSelectOptions");
 
-    function renderOptions(filter = "") {
-      const q = filter.trim().toLowerCase();
-
-      const filtered = options.filter((opt) =>
-        opt.textContent.toLowerCase().includes(q)
-      );
-
-      optionsWrap.innerHTML = filtered
-        .map((opt) => `
-          <button
-            type="button"
-            class="customSelectOption ${opt.value === select.value ? "active" : ""}"
-            data-value="${escapeHtml(opt.value)}"
-          >
-            ${escapeHtml(opt.textContent)}
-          </button>
-        `)
+    const renderOpts = (q = "") => {
+      q = q.trim().toLowerCase();
+      list.innerHTML = opts
+        .filter((o) => o.textContent.toLowerCase().includes(q))
+        .map((o) => `<button type="button" class="customSelectOption ${o.value === select.value ? "active" : ""}" data-value="${esc(o.value)}">${esc(o.textContent)}</button>`)
         .join("");
-
-      optionsWrap.querySelectorAll(".customSelectOption").forEach((btn) => {
-        btn.addEventListener("click", () => {
+      list.querySelectorAll(".customSelectOption").forEach((btn) => {
+        btn.onclick = () => {
           select.value = btn.dataset.value;
-          const match = [...select.options].find((opt) => opt.value === btn.dataset.value);
-          valueText.textContent = match ? match.textContent : "None";
-          wrapper.classList.remove("open");
-
-          if (typeof onChangeCallback === "function") {
-            onChangeCallback();
-          }
-        });
+          value.textContent = btn.textContent;
+          wrap.classList.remove("open");
+          onChange && onChange();
+        };
       });
-    }
+    };
 
-    renderOptions();
+    renderOpts();
+    trigger.onclick = () => {
+      const open = wrap.classList.contains("open");
+      closeSelects(wrap);
+      wrap.classList.toggle("open", !open);
+      if (!open) { search.value = ""; renderOpts(""); setTimeout(() => search.focus(), 0); }
+    };
+    search.oninput = () => renderOpts(search.value);
+  }
 
-    trigger.addEventListener("click", () => {
-      const isOpen = wrapper.classList.contains("open");
-      closeAllCustomSelects(wrapper);
-      wrapper.classList.toggle("open", !isOpen);
+  document.addEventListener("click", (e) => { if (!e.target.closest(".customSelect")) closeSelects(); });
 
-      if (!isOpen) {
-        search.value = "";
-        renderOptions("");
-        setTimeout(() => search.focus(), 0);
-      }
+  const fillSelect = (id, rows, selected, labelKey = "name", none = true, onChange = null) => {
+    const s = $(id);
+    s.innerHTML = "";
+    if (none) s.appendChild(makeOption("", "None", selected));
+    rows.forEach((r) => s.appendChild(makeOption(r.id, r[labelKey], selected)));
+    buildSelect(id, onChange);
+  };
+
+  const fillMultiRoles = (roles, selectedIds = []) => {
+    const s = $("rolePermissionsSelect");
+    if (!s) return;
+    s.innerHTML = "";
+    roles.forEach((r) => {
+      const o = makeOption(r.id, r.name);
+      o.selected = selectedIds.includes(r.id);
+      s.appendChild(o);
     });
+  };
 
-    search.addEventListener("input", () => {
-      renderOptions(search.value);
+  const selectedMulti = (id) => [...$(id).selectedOptions].map((o) => o.value);
+
+  const setUserUI = (authed, user) => {
+    $("authNotice").style.display = authed ? "none" : "block";
+    $("loginButton").style.display = authed ? "none" : "inline-flex";
+    $("userBadge").style.display = authed ? "flex" : "none";
+    if (authed) {
+      $("userName").textContent = user?.global_name || user?.username || "User";
+      $("userAvatarInitial").textContent = (user?.global_name || user?.username || "U").charAt(0).toUpperCase();
+    }
+  };
+
+  const loadMe = async () => {
+    const me = await api("/api/me");
+    state.me = me.user || null;
+    setUserUI(me.authenticated, me.user);
+    return me.authenticated;
+  };
+
+  const loadGuilds = async () => {
+    try { state.guilds = await api("/api/guilds"); }
+    catch { state.guilds = []; }
+    renderGuildSwitcher();
+  };
+
+  const renderGuildSwitcher = () => {
+    const mount = $("guildSwitcherMount");
+    if (!state.guilds.length) {
+      mount.innerHTML = `<p class="emptyState">No available servers.</p>`;
+      return;
+    }
+    mount.innerHTML = `<select id="guildSwitcherSelect" class="nativeHidden"></select><div id="guildSwitcherSelect_custom"></div>`;
+    const s = $("guildSwitcherSelect");
+    s.appendChild(makeOption("", "Select a server", state.guildId || ""));
+    state.guilds.forEach((g) => s.appendChild(makeOption(g.id, g.name, state.guildId || "")));
+    buildSelect("guildSwitcherSelect", () => {
+      const id = $("guildSwitcherSelect").value;
+      id ? goGuildPage("overview", id) : goHome();
     });
-  }
+  };
 
-  document.addEventListener("click", (event) => {
-    if (!event.target.closest(".customSelect")) {
-      closeAllCustomSelects();
-    }
-  });
+  const loadGuild = async (id) => {
+    state.guild = await api(`/api/guild/${id}/settings`);
+    state.guildId = id;
+    renderGuildSwitcher();
+  };
 
-  function fillSelect(selectId, items, selectedValue, labelKey = "name") {
-    const select = qs(selectId);
-    select.innerHTML = "";
-    select.appendChild(makeOption("", "None", selectedValue));
+  const metric = (label, value, sub = "", spark = true) => `
+    <div class="statCard">
+      <span class="statLabel">${esc(label)}</span>
+      <div class="statValue">${esc(value)}</div>
+      <div class="statSub">${esc(sub)}</div>
+      ${spark ? `<div class="sparkline"></div>` : ""}
+    </div>
+  `;
 
-    for (const item of items) {
-      select.appendChild(makeOption(item.id, item[labelKey], selectedValue));
-    }
+  const tableRows = (rows) => rows.map((r, i) => `
+    <div class="tableRow">
+      <div class="rankBadge">${i + 1}</div>
+      <div>
+        <div>${esc(r.title)}</div>
+        <div class="tableMeta">${esc(r.sub || "")}</div>
+      </div>
+      <div class="tableValue">${esc(r.value ?? "")}</div>
+    </div>
+  `).join("");
 
-    buildCustomSelect(selectId);
-  }
-
-  function fillCommandSelect(commands) {
-    const select = qs("commandSelect");
-    const previous = select.value;
-    select.innerHTML = "";
-
-    for (const command of commands) {
-      const label = `${command.name} (${command.category})`;
-      select.appendChild(makeOption(command.name, label, previous));
-    }
-
-    if (!select.value && commands.length) {
-      select.value = commands[0].name;
-    }
-
-    buildCustomSelect("commandSelect", loadCommandRoles);
-  }
-
-  function fillCommandCategoryFilter(commands) {
-    const select = qs("commandCategoryFilter");
-    const previous = select.value || "all";
-    const categories = [...new Set(commands.map((cmd) => cmd.category).filter(Boolean))].sort();
-
-    select.innerHTML = "";
-    select.appendChild(makeOption("all", "All Categories", previous));
-
-    for (const category of categories) {
-      select.appendChild(makeOption(category, category, previous));
-    }
-
-    if (![...select.options].some((opt) => opt.value === previous)) {
-      select.value = "all";
-    }
-
-    buildCustomSelect("commandCategoryFilter", renderCommandsPage);
-  }
-
-  function fillRoleMultiSelect(roles, selectedIds = []) {
-    const select = qs("rolePermissionsSelect");
-    if (!select) return;
-
-    select.innerHTML = "";
-    for (const role of roles) {
-      const option = makeOption(role.id, role.name);
-      option.selected = selectedIds.includes(role.id);
-      select.appendChild(option);
-    }
-  }
-
-  function getSelectedMultiValues(selectId) {
-    return [...qs(selectId).selectedOptions].map((opt) => opt.value);
-  }
-
-  async function api(url, options = {}) {
-    const res = await fetch(url, options);
-    const contentType = res.headers.get("content-type") || "";
-    const isJson = contentType.includes("application/json");
-    const data = isJson ? await res.json() : await res.text();
-
-    if (!res.ok) {
-      const message = typeof data === "object" ? data.error || "Request failed" : data;
-      throw new Error(message);
-    }
-
-    return data;
-  }
-
-  async function loadMe() {
-    const data = await api("/api/me");
-    state.me = data.user || null;
-
-    const authNotice = qs("authNotice");
-    const loginButton = qs("loginButton");
-    const userBadge = qs("userBadge");
-
-    if (!data.authenticated) {
-      authNotice.style.display = "block";
-      loginButton.style.display = "inline-flex";
-      userBadge.style.display = "none";
-      return false;
-    }
-
-    authNotice.style.display = "none";
-    loginButton.style.display = "none";
-    userBadge.style.display = "flex";
-    qs("userName").textContent = data.user?.global_name || data.user?.username || "User";
-    qs("userAvatarInitial").textContent = (data.user?.global_name || data.user?.username || "U").charAt(0).toUpperCase();
-    return true;
-  }
-
-  async function loadHealth() {
-    const data = await api("/api/health");
-    const hero = `
+  const heroHome = async () => {
+    const h = await api("/api/health");
+    return `
       <div class="heroPanel routeView">
         <div class="heroGlow"></div>
         <div class="heroContent">
           <div>
             <h3 class="heroTitle">System Overview</h3>
-            <p class="heroText">Live status for your bot and current workspace.</p>
+            <p class="heroText">Live bot status and dashboard workspace access.</p>
           </div>
-
           <div class="statGrid">
-            <div class="statCard">
-              <span class="statLabel">Bot</span>
-              <div class="statValue">${escapeHtml(data.bot?.tag || "Offline")}</div>
-              <div class="statSub">Connected identity</div>
-            </div>
-
-            <div class="statCard">
-              <span class="statLabel">Guilds</span>
-              <div class="statValue">${escapeHtml(data.guilds ?? "Unknown")}</div>
-              <div class="statSub">Servers currently loaded</div>
-              <div class="sparkline"></div>
-            </div>
-
-            <div class="statCard">
-              <span class="statLabel">Uptime</span>
-              <div class="statValue">${escapeHtml(formatUptime(data.uptime))}</div>
-              <div class="statSub">Current process runtime</div>
-              <div class="sparkline"></div>
-            </div>
-
-            <div class="statCard">
-              <span class="statLabel">Mode</span>
-              <div class="statValue">Phase 1</div>
-              <div class="statSub">UI shell online</div>
-              <div class="sparkline"></div>
-            </div>
+            ${metric("Bot", h.bot?.tag || "Offline", "Connected identity", false)}
+            ${metric("Guilds", h.guilds ?? "Unknown", "Servers currently loaded")}
+            ${metric("Uptime", fmtUptime(h.uptime), "Current process runtime")}
+            ${metric("Mode", "Phase 2", "Analytics enabled")}
           </div>
         </div>
       </div>
     `;
-    return hero;
-  }
+  };
 
-  async function loadGuilds() {
-    try {
-      state.guilds = await api("/api/guilds");
-    } catch {
-      state.guilds = [];
-    }
-
-    renderGuildSwitcher();
-  }
-
-  function renderGuildSwitcher() {
-    const mount = qs("guildSwitcherMount");
-
-    if (!state.guilds.length) {
-      mount.innerHTML = `<p class="emptyState">No available servers.</p>`;
-      return;
-    }
-
-    const current = state.selectedGuildId || "";
-    const selectId = "guildSwitcherSelect";
-
-    mount.innerHTML = `
-      <select id="${selectId}" class="nativeHidden"></select>
-      <div id="${selectId}_custom"></div>
-    `;
-
-    const select = qs(selectId);
-    select.appendChild(makeOption("", "Select a server", current));
-
-    for (const guild of state.guilds) {
-      select.appendChild(makeOption(guild.id, guild.name, current));
-    }
-
-    buildCustomSelect(selectId, () => {
-      const id = qs(selectId).value;
-      if (!id) {
-        goHome();
-        return;
-      }
-      goGuildPage("overview", id);
-    });
-  }
-
-  function setTopbar(title, subtitle, breadcrumb, { showSave = false, showBack = false } = {}) {
-    qs("pageTitle").textContent = title;
-    qs("pageSubtitle").textContent = subtitle;
-    qs("breadcrumb").textContent = breadcrumb;
-    qs("saveButton").style.display = showSave ? "inline-flex" : "none";
-    qs("backButton").style.display = showBack ? "inline-flex" : "none";
-  }
-
-  function setActiveNav(page = null) {
-    document.querySelectorAll(".navItem").forEach((item) => {
-      item.classList.remove("active");
-    });
-
-    if (!page && window.location.pathname === "/") {
-      const home = document.querySelector('.navItem[data-route="/"]');
-      if (home) home.classList.add("active");
-    }
-
-    if (page) {
-      const match = document.querySelector(`.navItem[data-page="${page}"]`);
-      if (match) match.classList.add("active");
-    }
-
-    qs("guildNavGroup").style.display = state.selectedGuildId ? "flex" : "none";
-  }
-
-  function getRoute() {
-    const parts = window.location.pathname.split("/").filter(Boolean);
-
-    if (!parts.length) {
-      return { type: "home" };
-    }
-
-    if (parts[0] === "guild" && parts[1]) {
-      return {
-        type: "guild",
-        guildId: parts[1],
-        page: parts[2] || "overview",
-      };
-    }
-
-    return { type: "home" };
-  }
-
-  async function loadGuildData(guildId) {
-    const data = await api(`/api/guild/${guildId}/settings`);
-    state.selectedGuildId = guildId;
-    state.selectedGuildData = data;
-    renderGuildSwitcher();
-    return data;
-  }
-
-  function renderHomePage(heroHtml) {
-    setTopbar(
-      "Dashboard",
-      "Choose a server to open its workspace and manage bot systems.",
-      "Dashboard",
-      { showSave: false, showBack: false }
-    );
-    setActiveNav(null);
-
-    const guildCards = state.guilds.length
-      ? state.guilds.map((guild) => `
-        <div class="quickCard" onclick="Dashboard.goGuildPage('overview', '${guild.id}')">
-          <h4>${escapeHtml(guild.name)}</h4>
-          <p>${guild.memberCount ?? "?"} members · Open workspace overview</p>
-        </div>
-      `).join("")
+  const renderHome = async () => {
+    setTop("Dashboard", "Choose a server to open its workspace and analytics.", "Dashboard", false, false);
+    activeNav(null);
+    const cards = state.guilds.length
+      ? state.guilds.map((g) => `
+          <div class="quickCard" onclick="Dashboard.goGuildPage('overview','${g.id}')">
+            <h4>${esc(g.name)}</h4>
+            <p>${g.memberCount ?? "?"} members · Open workspace overview</p>
+          </div>
+        `).join("")
       : `<p class="emptyState">No admin-accessible servers found.</p>`;
 
-    qs("viewRoot").innerHTML = `
+    $("viewRoot").innerHTML = `
       <div class="routeView">
-        ${heroHtml}
-
+        ${await heroHome()}
         <div class="contentGrid">
           <div class="panelCard">
             <div class="panelHeader">
@@ -416,95 +255,66 @@ const Dashboard = (() => {
                 <p class="panelSubtitle">Select a guild to open its dedicated control panel.</p>
               </div>
             </div>
-            <div class="quickGrid">
-              ${guildCards}
-            </div>
-          </div>
-
-          <div class="gridTwo">
-            <div class="panelCard">
-              <div class="panelHeader">
-                <div>
-                  <h3 class="panelTitle">What this panel is becoming</h3>
-                  <p class="panelSubtitle">Phase 1 layout foundation for a full production dashboard.</p>
-                </div>
-              </div>
-
-              <div class="placeholderBlock">
-                <div class="placeholderLine long"></div>
-                <div class="placeholderLine medium"></div>
-                <div class="placeholderLine long"></div>
-                <div class="placeholderLine short"></div>
-              </div>
-            </div>
-
-            <div class="listCard">
-              <div class="listHeader">
-                <div>
-                  <h3 class="listTitle">Planned Modules</h3>
-                  <p class="listSubtitle">The next backend-heavy systems to wire in.</p>
-                </div>
-              </div>
-
-              <div class="tableList">
-                ${["Analytics tracking", "Moderation history", "Activity graphs", "Automation center", "Audit logs", "Role access matrix"]
-                  .map((name, i) => `
-                    <div class="tableRow">
-                      <div class="rankBadge">${i + 1}</div>
-                      <div>
-                        <div>${escapeHtml(name)}</div>
-                        <div class="tableMeta">Phase 2 / Phase 3 roadmap</div>
-                      </div>
-                      <div class="tableValue">Planned</div>
-                    </div>
-                  `).join("")}
-              </div>
-            </div>
+            <div class="quickGrid">${cards}</div>
           </div>
         </div>
       </div>
     `;
-  }
+  };
 
-  function renderOverviewPage() {
-    const guild = state.selectedGuildData?.guild;
-    setTopbar(
-      guild?.name || "Overview",
-      "High-level summary of this server’s bot systems and future analytics space.",
-      `${guild?.name || "Guild"} / Overview`,
-      { showSave: false, showBack: true }
-    );
-    setActiveNav("overview");
+  const linePath = (series) => {
+    const w = 1000, h = 260, pad = 24;
+    const vals = series.map((x) => Number(x.value || 0));
+    const max = Math.max(...vals, 1);
+    return series.map((p, i) => {
+      const x = pad + (i * (w - pad * 2)) / Math.max(series.length - 1, 1);
+      const y = h - pad - ((Number(p.value || 0) / max) * (h - pad * 2));
+      return `${i ? "L" : "M"} ${x} ${y}`;
+    }).join(" ");
+  };
 
-    qs("viewRoot").innerHTML = `
+  const chartSvg = (series) => {
+    const labels = series.map((s, i) => {
+      const x = 24 + (i * (952)) / Math.max(series.length - 1, 1);
+      return `<text x="${x}" y="250" text-anchor="middle" fill="rgba(255,255,255,.45)" font-size="12">${esc((s.day || "").slice(5))}</text>`;
+    }).join("");
+    return `
+      <svg viewBox="0 0 1000 260" class="realChart" preserveAspectRatio="none">
+        ${[1,2,3,4].map(i => `<line x1="24" y1="${i*50}" x2="976" y2="${i*50}" stroke="rgba(255,255,255,.05)" />`).join("")}
+        <path d="${linePath(series)}" fill="none" stroke="url(#g)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></path>
+        <defs>
+          <linearGradient id="g" x1="0%" x2="100%">
+            <stop offset="0%" stop-color="#7ea0ff"></stop>
+            <stop offset="100%" stop-color="#9c7bff"></stop>
+          </linearGradient>
+        </defs>
+        ${labels}
+      </svg>
+    `;
+  };
+
+  const overview = async () => {
+    const g = state.guild, id = state.guildId;
+    const [summary, messages, channels, users, commands, moderation, voice] = await Promise.all([
+      api(`/api/guild/${id}/analytics/summary?days=30`),
+      api(`/api/guild/${id}/analytics/messages?days=30`),
+      api(`/api/guild/${id}/analytics/channels?days=30`),
+      api(`/api/guild/${id}/analytics/users?days=30`),
+      api(`/api/guild/${id}/analytics/commands?days=30`),
+      api(`/api/guild/${id}/analytics/moderation?days=30`),
+      api(`/api/guild/${id}/analytics/voice?days=30`),
+    ]);
+
+    setTop(g.guild.name, "High-level summary of this server’s bot systems and live activity.", `${g.guild.name} / Overview`, false, true);
+    activeNav("overview");
+
+    $("viewRoot").innerHTML = `
       <div class="routeView">
         <div class="statGrid">
-          <div class="statCard">
-            <span class="statLabel">Server</span>
-            <div class="statValue">${escapeHtml(guild?.name || "Unknown")}</div>
-            <div class="statSub">Current workspace</div>
-          </div>
-
-          <div class="statCard">
-            <span class="statLabel">Channels</span>
-            <div class="statValue">${escapeHtml(state.selectedGuildData.channels?.length || 0)}</div>
-            <div class="statSub">Text-based channels loaded</div>
-            <div class="sparkline"></div>
-          </div>
-
-          <div class="statCard">
-            <span class="statLabel">Roles</span>
-            <div class="statValue">${escapeHtml(state.selectedGuildData.roles?.length || 0)}</div>
-            <div class="statSub">Assignable roles available</div>
-            <div class="sparkline"></div>
-          </div>
-
-          <div class="statCard">
-            <span class="statLabel">Commands</span>
-            <div class="statValue">${escapeHtml(state.selectedGuildData.commands?.length || 0)}</div>
-            <div class="statSub">Loaded dashboard-visible commands</div>
-            <div class="sparkline"></div>
-          </div>
+          ${metric("Messages", summary.messages, "Last 30 days")}
+          ${metric("Reactions", summary.reactions, "Tracked reaction adds")}
+          ${metric("Voice Hours", (summary.voiceSeconds / 3600).toFixed(1), "Tracked voice activity")}
+          ${metric("Mod Actions", summary.moderationActions, "Tracked moderation events")}
         </div>
 
         <div class="contentGrid" style="margin-top:18px;">
@@ -513,14 +323,10 @@ const Dashboard = (() => {
               <div class="panelHeader">
                 <div>
                   <h3 class="panelTitle">Activity Snapshot</h3>
-                  <p class="panelSubtitle">Placeholder visual until backend event tracking is added.</p>
+                  <p class="panelSubtitle">Messages over the last 30 days.</p>
                 </div>
               </div>
-
-              <div class="fakeChart">
-                <div class="fakeChartLine"></div>
-                <div class="fakeChartStroke"></div>
-              </div>
+              <div class="fakeChart">${chartSvg(messages.series)}</div>
             </div>
 
             <div class="listCard">
@@ -530,76 +336,81 @@ const Dashboard = (() => {
                   <p class="listSubtitle">Open system pages for this guild.</p>
                 </div>
               </div>
-
               <div class="tableList">
-                ${[
-                  ["Moderation", "Configure mod log and purge archive", "moderation"],
-                  ["Jail", "Set jail role and jail channel", "jail"],
-                  ["Role Permissions", "Limit commands by role", "role-permissions"],
-                  ["Commands", "Browse loaded commands", "commands"],
-                  ["Analytics", "Future charts and activity data", "analytics"],
-                  ["Settings", "Combined guild settings", "settings"]
-                ].map((row, i) => `
-                  <div class="tableRow" onclick="Dashboard.goGuildPage('${row[2]}')" style="cursor:pointer;">
-                    <div class="rankBadge">${i + 1}</div>
-                    <div>
-                      <div>${escapeHtml(row[0])}</div>
-                      <div class="tableMeta">${escapeHtml(row[1])}</div>
-                    </div>
-                    <div class="tableValue">Open</div>
-                  </div>
-                `).join("")}
+                ${tableRows([
+                  { title: "Moderation", sub: "Configure mod log and purge archive", value: "Open" },
+                  { title: "Jail", sub: "Set jail role and jail channel", value: "Open" },
+                  { title: "Role Permissions", sub: "Limit commands by role", value: "Open" },
+                  { title: "Commands", sub: "Browse loaded commands", value: "Open" },
+                  { title: "Analytics", sub: "Full tracked analytics", value: "Open" },
+                  { title: "Settings", sub: "Combined guild settings", value: "Open" },
+                ].map((r, i) => ({ ...r, click: i })))}
               </div>
             </div>
           </div>
 
-          <div class="panelCard">
-            <div class="panelHeader">
-              <div>
-                <h3 class="panelTitle">System Preview</h3>
-                <p class="panelSubtitle">These cards are ready for future backend data.</p>
+          <div class="gridTwo">
+            <div class="listCard">
+              <div class="listHeader">
+                <div>
+                  <h3 class="listTitle">Top Channels</h3>
+                  <p class="listSubtitle">Most active channels by messages.</p>
+                </div>
+              </div>
+              <div class="tableList">
+                ${tableRows(channels.rows.map((r) => ({ title: `# ${r.name}`, sub: "Messages", value: r.total })))}
               </div>
             </div>
 
-            <div class="quickGrid">
-              <div class="quickCard" onclick="Dashboard.goGuildPage('analytics')">
-                <h4>Message Trends</h4>
-                <p>Daily and weekly server activity charts.</p>
+            <div class="listCard">
+              <div class="listHeader">
+                <div>
+                  <h3 class="listTitle">Top Users</h3>
+                  <p class="listSubtitle">Most active members by messages.</p>
+                </div>
               </div>
-              <div class="quickCard" onclick="Dashboard.goGuildPage('analytics')">
-                <h4>Top Channels</h4>
-                <p>Most active channels and interaction hotspots.</p>
+              <div class="tableList">
+                ${tableRows(users.rows.map((r) => ({ title: r.name, sub: "Messages", value: r.total })))}
               </div>
-              <div class="quickCard" onclick="Dashboard.goGuildPage('moderation')">
-                <h4>Moderation Summary</h4>
-                <p>Case counts, punishments, and moderator actions.</p>
-              </div>
-              <div class="quickCard" onclick="Dashboard.goGuildPage('settings')">
-                <h4>System Health</h4>
-                <p>Feature toggles and dashboard wiring status.</p>
-              </div>
+            </div>
+          </div>
+
+          <div class="quickGrid">
+            <div class="quickCard" onclick="Dashboard.goGuildPage('analytics')">
+              <h4>Top Commands</h4>
+              <p>${commands.top[0] ? `${commands.top[0].commandName} leads with ${commands.top[0].total}` : "No command data yet"}</p>
+            </div>
+            <div class="quickCard" onclick="Dashboard.goGuildPage('analytics')">
+              <h4>Voice Leader</h4>
+              <p>${voice.rows[0] ? `${voice.rows[0].name} · ${fmtDur(voice.rows[0].totalSeconds)}` : "No voice data yet"}</p>
+            </div>
+            <div class="quickCard" onclick="Dashboard.goGuildPage('analytics')">
+              <h4>Recent Mod Action</h4>
+              <p>${moderation.recent[0] ? `${moderation.recent[0].actionType} by ${moderation.recent[0].moderatorName}` : "No mod actions yet"}</p>
+            </div>
+            <div class="quickCard" onclick="Dashboard.goGuildPage('settings')">
+              <h4>System Health</h4>
+              <p>Analytics and workspace routes are live.</p>
             </div>
           </div>
         </div>
       </div>
     `;
-  }
 
-  function renderModerationPage() {
-    const settings = state.selectedGuildData.settings || {};
+    const rows = [...document.querySelectorAll(".tableRow")];
+    const pages = ["moderation", "jail", "role-permissions", "commands", "analytics", "settings"];
+    rows.slice(0, 6).forEach((row, i) => row.style.cursor = "pointer", row.onclick = () => goGuildPage(pages[i]));
+  };
 
-    setTopbar(
-      "Moderation",
-      "Configure moderation output channels and future enforcement tools.",
-      `${state.selectedGuildData.guild.name} / Moderation`,
-      { showSave: true, showBack: true }
-    );
-    setActiveNav("moderation");
+  const moderationPage = () => {
+    const g = state.guild;
+    const s = g.settings || {};
+    setTop("Moderation", "Configure moderation output channels and future enforcement tools.", `${g.guild.name} / Moderation`, true, true);
+    activeNav("moderation");
 
-    qs("viewRoot").innerHTML = `
+    $("viewRoot").innerHTML = `
       <div class="routeView">
         <div id="saveStatus" class="saveStatus"></div>
-
         <div class="sectionGrid">
           <div class="settingCard">
             <label for="modLogChannel">Mod Log Channel</label>
@@ -607,7 +418,6 @@ const Dashboard = (() => {
             <div id="modLogChannel_custom"></div>
             <div class="fieldHelp">Where moderation logs and case output will be sent.</div>
           </div>
-
           <div class="settingCard">
             <label for="purgeArchiveChannel">Purge Archive Channel</label>
             <select id="purgeArchiveChannel" class="nativeHidden"></select>
@@ -615,46 +425,22 @@ const Dashboard = (() => {
             <div class="fieldHelp">Where archived purge results should be stored.</div>
           </div>
         </div>
-
-        <div class="contentGrid" style="margin-top:18px;">
-          <div class="panelCard">
-            <div class="panelHeader">
-              <div>
-                <h3 class="panelTitle">Moderation Roadmap</h3>
-                <p class="panelSubtitle">Future modules already accounted for in the UI layout.</p>
-              </div>
-            </div>
-
-            <div class="quickGrid">
-              <div class="quickCard"><h4>Cases</h4><p>Case feed and action history.</p></div>
-              <div class="quickCard"><h4>Logs</h4><p>Mod audit trail and export support.</p></div>
-              <div class="quickCard"><h4>Thresholds</h4><p>Future warning and escalation configs.</p></div>
-              <div class="quickCard"><h4>Templates</h4><p>Preset enforcement rule packs later.</p></div>
-            </div>
-          </div>
-        </div>
       </div>
     `;
 
-    fillSelect("modLogChannel", state.selectedGuildData.channels, settings.mod_log_channel_id || "");
-    fillSelect("purgeArchiveChannel", state.selectedGuildData.channels, settings.purge_archive_channel_id || "");
-  }
+    fillSelect("modLogChannel", g.channels, s.mod_log_channel_id || "");
+    fillSelect("purgeArchiveChannel", g.channels, s.purge_archive_channel_id || "");
+  };
 
-  function renderJailPage() {
-    const jail = state.selectedGuildData.jail || {};
+  const jailPage = () => {
+    const g = state.guild;
+    const j = g.jail || {};
+    setTop("Jail", "Manage jail role and jail channel behavior.", `${g.guild.name} / Jail`, true, true);
+    activeNav("jail");
 
-    setTopbar(
-      "Jail",
-      "Manage jail role and jail channel behavior.",
-      `${state.selectedGuildData.guild.name} / Jail`,
-      { showSave: true, showBack: true }
-    );
-    setActiveNav("jail");
-
-    qs("viewRoot").innerHTML = `
+    $("viewRoot").innerHTML = `
       <div class="routeView">
         <div id="saveStatus" class="saveStatus"></div>
-
         <div class="sectionGrid">
           <div class="settingCard">
             <label for="jailChannel">Jail Channel</label>
@@ -662,7 +448,6 @@ const Dashboard = (() => {
             <div id="jailChannel_custom"></div>
             <div class="fieldHelp">Channel jailed users are still allowed to access.</div>
           </div>
-
           <div class="settingCard">
             <label for="jailRole">Jail Role</label>
             <select id="jailRole" class="nativeHidden"></select>
@@ -670,53 +455,36 @@ const Dashboard = (() => {
             <div class="fieldHelp">Role applied to jailed users when the command executes.</div>
           </div>
         </div>
-
-        <div class="contentGrid" style="margin-top:18px;">
-          <div class="listCard">
-            <div class="listHeader">
-              <div>
-                <h3 class="listTitle">Future Jail Features</h3>
-                <p class="listSubtitle">Planned extensions for this module.</p>
-              </div>
-            </div>
-
-            <div class="tableList">
-              ${[
-                "Active jailed users list",
-                "Role restore snapshots",
-                "Release history",
-                "Timed jail durations",
-                "Reason history"
-              ].map((item, i) => `
-                <div class="tableRow">
-                  <div class="rankBadge">${i + 1}</div>
-                  <div><div>${escapeHtml(item)}</div><div class="tableMeta">Planned enhancement</div></div>
-                  <div class="tableValue">Soon</div>
-                </div>
-              `).join("")}
-            </div>
-          </div>
-        </div>
       </div>
     `;
 
-    fillSelect("jailChannel", state.selectedGuildData.channels, jail.jail_channel_id || "");
-    fillSelect("jailRole", state.selectedGuildData.roles, jail.jail_role_id || "");
-  }
+    fillSelect("jailChannel", g.channels, j.jail_channel_id || "");
+    fillSelect("jailRole", g.roles, j.jail_role_id || "");
+  };
 
-  async function renderRolePermissionsPage() {
-    setTopbar(
-      "Role Permissions",
-      "Choose which roles are allowed to use selected commands.",
-      `${state.selectedGuildData.guild.name} / Role Permissions`,
-      { showSave: false, showBack: true }
-    );
-    setActiveNav("role-permissions");
+  const loadCommandRoles = async () => {
+    const commandName = $("commandSelect").value;
+    if (!commandName) return;
+    try {
+      const data = await api(`/api/guild/${state.guildId}/command-roles/${encodeURIComponent(commandName)}`);
+      fillMultiRoles(state.guild.roles, data.roleIds || []);
+      $("selectedRoleCount").textContent = `${(data.roles || []).length} selected`;
+      $("selectedRoleChips").innerHTML = data.roles?.length
+        ? data.roles.map((r) => `<span class="roleChip">${esc(r.name)}</span>`).join("")
+        : `<span class="emptyChip">None configured.</span>`;
+    } catch (e) {
+      setSaveStatus(e.message || "Failed to load role permissions.", "error");
+    }
+  };
 
-    qs("viewRoot").innerHTML = `
+  const rolePermissionsPage = async () => {
+    const g = state.guild;
+    setTop("Role Permissions", "Choose which roles are allowed to use selected commands.", `${g.guild.name} / Role Permissions`, false, true);
+    activeNav("role-permissions");
+
+    $("viewRoot").innerHTML = `
       <div class="routeView">
         <div id="saveStatus" class="saveStatus"></div>
-
         <div class="sectionGrid">
           <div class="settingCard">
             <label for="commandSelect">Command</label>
@@ -724,7 +492,6 @@ const Dashboard = (() => {
             <div id="commandSelect_custom"></div>
             <div class="fieldHelp">Pick the command you want to lock down.</div>
           </div>
-
           <div class="settingCard">
             <label for="rolePermissionsSelect">Allowed Roles</label>
             <select id="rolePermissionsSelect" class="multiSelect" multiple size="10"></select>
@@ -739,12 +506,8 @@ const Dashboard = (() => {
               <p class="panelSubtitle"><span id="selectedRoleCount">0 selected</span></p>
             </div>
           </div>
-
-          <div id="selectedRoleChips" class="chipWrap">
-            <span class="emptyChip">None configured.</span>
-          </div>
-
-          <div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;">
+          <div id="selectedRoleChips" class="chipWrap"><span class="emptyChip">None configured.</span></div>
+          <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">
             <button class="primaryButton" onclick="Dashboard.saveCommandRoles()">Save Role Permissions</button>
             <button class="ghostButton" onclick="Dashboard.clearCommandRoles()">Clear Role Permissions</button>
           </div>
@@ -752,135 +515,92 @@ const Dashboard = (() => {
       </div>
     `;
 
-    fillCommandSelect(state.selectedGuildData.commands);
+    const s = $("commandSelect");
+    s.innerHTML = "";
+    state.guild.commands.forEach((c) => s.appendChild(makeOption(c.name, `${c.name} (${c.category})`)));
+    buildSelect("commandSelect", loadCommandRoles);
     await loadCommandRoles();
-  }
+  };
 
-  function renderCommandsPage() {
-    setTopbar(
-      "Commands",
-      "Browse loaded commands, usage, aliases, and categories.",
-      `${state.selectedGuildData.guild.name} / Commands`,
-      { showSave: false, showBack: true }
-    );
-    setActiveNav("commands");
+  const renderCommandsGrid = () => {
+    const search = ($("commandSearch")?.value || "").trim().toLowerCase();
+    const category = $("commandCategoryFilter")?.value || "all";
+    const list = $("commandsGrid");
 
-    qs("viewRoot").innerHTML = `
+    const rows = state.guild.commands.filter((cmd) => {
+      const hay = [cmd.name, cmd.description, ...(cmd.aliases || []), cmd.category, cmd.prefixUsage || "", cmd.slashUsage || "", cmd.options || ""].join(" ").toLowerCase();
+      return (category === "all" || cmd.category === category) && (!search || hay.includes(search));
+    });
+
+    list.innerHTML = rows.length ? rows.map((cmd) => `
+      <div class="commandCard">
+        <div class="commandHeader">
+          <div>
+            <h4>${esc(cmd.name)}</h4>
+            <p>${esc(cmd.description || "No description provided.")}</p>
+          </div>
+          <span class="categoryBadge">${esc(cmd.category)}</span>
+        </div>
+        <div class="commandMetaGrid">
+          <div class="commandMetaItem"><span class="metaLabel">Prefix</span><code>${esc(cmd.prefixUsage || "Not available")}</code></div>
+          <div class="commandMetaItem"><span class="metaLabel">Slash</span><code>${esc(cmd.slashUsage || "Not available")}</code></div>
+          <div class="commandMetaItem"><span class="metaLabel">Aliases</span><span>${cmd.aliases?.length ? esc(cmd.aliases.join(", ")) : "None"}</span></div>
+          <div class="commandMetaItem"><span class="metaLabel">Options</span><span>${esc(cmd.options || "No options")}</span></div>
+        </div>
+      </div>
+    `).join("") : `<p class="emptyState">No commands matched that filter.</p>`;
+  };
+
+  const commandsPage = () => {
+    const g = state.guild;
+    setTop("Commands", "Browse loaded commands, usage, aliases, and categories.", `${g.guild.name} / Commands`, false, true);
+    activeNav("commands");
+
+    $("viewRoot").innerHTML = `
       <div class="routeView">
         <div class="commandsToolbar">
-          <input
-            id="commandSearch"
-            class="commandSearch"
-            type="text"
-            placeholder="Search commands..."
-          />
+          <input id="commandSearch" class="commandSearch" type="text" placeholder="Search commands..." />
           <select id="commandCategoryFilter" class="nativeHidden"></select>
           <div id="commandCategoryFilter_custom"></div>
         </div>
-
         <div id="commandsGrid" class="commandsGrid"></div>
       </div>
     `;
 
-    qs("commandSearch").addEventListener("input", renderCommandsPageList);
-    fillCommandCategoryFilter(state.selectedGuildData.commands);
-    renderCommandsPageList();
-  }
-
-  function renderCommandsPageList() {
-    const list = qs("commandsGrid");
-    const search = (qs("commandSearch")?.value || "").trim().toLowerCase();
-    const category = qs("commandCategoryFilter")?.value || "all";
-
-    const commands = state.selectedGuildData.commands.filter((cmd) => {
-      const matchesCategory = category === "all" || cmd.category === category;
-      const haystack = [
-        cmd.name,
-        cmd.description,
-        ...(cmd.aliases || []),
-        cmd.category,
-        cmd.prefixUsage || "",
-        cmd.slashUsage || "",
-        cmd.options || "",
-      ].join(" ").toLowerCase();
-
-      const matchesSearch = !search || haystack.includes(search);
-      return matchesCategory && matchesSearch;
+    $("commandSearch").oninput = renderCommandsGrid;
+    const s = $("commandCategoryFilter");
+    s.innerHTML = "";
+    s.appendChild(makeOption("all", "All Categories", "all"));
+    [...new Set(state.guild.commands.map((c) => c.category).filter(Boolean))].sort().forEach((cat) => {
+      s.appendChild(makeOption(cat, cat, "all"));
     });
+    buildSelect("commandCategoryFilter", renderCommandsGrid);
+    renderCommandsGrid();
+  };
 
-    if (!commands.length) {
-      list.innerHTML = `<p class="emptyState">No commands matched that filter.</p>`;
-      return;
-    }
+  const analyticsPage = async () => {
+    const g = state.guild;
+    const id = state.guildId;
+    const [summary, messages, channels, users, commands, moderation, voice] = await Promise.all([
+      api(`/api/guild/${id}/analytics/summary?days=30`),
+      api(`/api/guild/${id}/analytics/messages?days=30`),
+      api(`/api/guild/${id}/analytics/channels?days=30`),
+      api(`/api/guild/${id}/analytics/users?days=30`),
+      api(`/api/guild/${id}/analytics/commands?days=30`),
+      api(`/api/guild/${id}/analytics/moderation?days=30`),
+      api(`/api/guild/${id}/analytics/voice?days=30`),
+    ]);
 
-    list.innerHTML = commands.map((cmd) => `
-      <div class="commandCard">
-        <div class="commandHeader">
-          <div>
-            <h4>${escapeHtml(cmd.name)}</h4>
-            <p>${escapeHtml(cmd.description || "No description provided.")}</p>
-          </div>
-          <span class="categoryBadge">${escapeHtml(cmd.category)}</span>
-        </div>
+    setTop("Analytics", "Live tracked analytics for this guild.", `${g.guild.name} / Analytics`, false, true);
+    activeNav("analytics");
 
-        <div class="commandMetaGrid">
-          <div class="commandMetaItem">
-            <span class="metaLabel">Prefix</span>
-            <code>${escapeHtml(cmd.prefixUsage || "Not available")}</code>
-          </div>
-          <div class="commandMetaItem">
-            <span class="metaLabel">Slash</span>
-            <code>${escapeHtml(cmd.slashUsage || "Not available")}</code>
-          </div>
-          <div class="commandMetaItem">
-            <span class="metaLabel">Aliases</span>
-            <span>${cmd.aliases?.length ? escapeHtml(cmd.aliases.join(", ")) : "None"}</span>
-          </div>
-          <div class="commandMetaItem">
-            <span class="metaLabel">Options</span>
-            <span>${escapeHtml(cmd.options || "No options")}</span>
-          </div>
-        </div>
-      </div>
-    `).join("");
-  }
-
-  function renderAnalyticsPage() {
-    setTopbar(
-      "Analytics",
-      "Activity and engagement layout ready for backend tracking data.",
-      `${state.selectedGuildData.guild.name} / Analytics`,
-      { showSave: false, showBack: true }
-    );
-    setActiveNav("analytics");
-
-    qs("viewRoot").innerHTML = `
+    $("viewRoot").innerHTML = `
       <div class="routeView">
         <div class="statGrid">
-          <div class="statCard">
-            <span class="statLabel">Messages</span>
-            <div class="statValue">--</div>
-            <div class="statSub">Backend tracker coming in Phase 2</div>
-            <div class="sparkline"></div>
-          </div>
-          <div class="statCard">
-            <span class="statLabel">Reactions</span>
-            <div class="statValue">--</div>
-            <div class="statSub">Will use stored event data</div>
-            <div class="sparkline"></div>
-          </div>
-          <div class="statCard">
-            <span class="statLabel">Voice Hours</span>
-            <div class="statValue">--</div>
-            <div class="statSub">Voice session tracker planned</div>
-            <div class="sparkline"></div>
-          </div>
-          <div class="statCard">
-            <span class="statLabel">Actions</span>
-            <div class="statValue">--</div>
-            <div class="statSub">Mod events and automation later</div>
-            <div class="sparkline"></div>
-          </div>
+          ${metric("Messages", summary.messages, "Last 30 days")}
+          ${metric("Reactions", summary.reactions, "Last 30 days")}
+          ${metric("Voice Hours", (summary.voiceSeconds / 3600).toFixed(1), "Last 30 days")}
+          ${metric("Mod Actions", summary.moderationActions, "Last 30 days")}
         </div>
 
         <div class="contentGrid" style="margin-top:18px;">
@@ -888,13 +608,10 @@ const Dashboard = (() => {
             <div class="panelHeader">
               <div>
                 <h3 class="panelTitle">Message Activity</h3>
-                <p class="panelSubtitle">Chart placeholder with final layout already in place.</p>
+                <p class="panelSubtitle">Messages over the last 30 days.</p>
               </div>
             </div>
-            <div class="fakeChart">
-              <div class="fakeChartLine"></div>
-              <div class="fakeChartStroke"></div>
-            </div>
+            <div class="fakeChart">${chartSvg(messages.series)}</div>
           </div>
 
           <div class="gridTwo">
@@ -902,17 +619,11 @@ const Dashboard = (() => {
               <div class="listHeader">
                 <div>
                   <h3 class="listTitle">Top Channels</h3>
-                  <p class="listSubtitle">Will rank channels once tracking is enabled.</p>
+                  <p class="listSubtitle">Most active channels by messages.</p>
                 </div>
               </div>
               <div class="tableList">
-                ${[1,2,3,4,5].map((i) => `
-                  <div class="tableRow">
-                    <div class="rankBadge">${i}</div>
-                    <div><div>Channel placeholder</div><div class="tableMeta">Future tracked data</div></div>
-                    <div class="tableValue">--</div>
-                  </div>
-                `).join("")}
+                ${tableRows(channels.rows.map((r) => ({ title: `# ${r.name}`, sub: "Messages", value: r.total })))}
               </div>
             </div>
 
@@ -920,276 +631,191 @@ const Dashboard = (() => {
               <div class="listHeader">
                 <div>
                   <h3 class="listTitle">Top Users</h3>
-                  <p class="listSubtitle">Future leaderboard block.</p>
+                  <p class="listSubtitle">Most active members by messages.</p>
                 </div>
               </div>
               <div class="tableList">
-                ${[1,2,3,4,5].map((i) => `
-                  <div class="tableRow">
-                    <div class="rankBadge">${i}</div>
-                    <div><div>User placeholder</div><div class="tableMeta">Future tracked data</div></div>
-                    <div class="tableValue">--</div>
-                  </div>
-                `).join("")}
+                ${tableRows(users.rows.map((r) => ({ title: r.name, sub: "Messages", value: r.total })))}
               </div>
+            </div>
+          </div>
+
+          <div class="gridTwo">
+            <div class="listCard">
+              <div class="listHeader">
+                <div>
+                  <h3 class="listTitle">Top Commands</h3>
+                  <p class="listSubtitle">Most used commands.</p>
+                </div>
+              </div>
+              <div class="tableList">
+                ${tableRows(commands.top.map((r) => ({ title: r.commandName, sub: "Uses", value: r.total })))}
+              </div>
+            </div>
+
+            <div class="listCard">
+              <div class="listHeader">
+                <div>
+                  <h3 class="listTitle">Voice Leaderboard</h3>
+                  <p class="listSubtitle">Most voice time tracked.</p>
+                </div>
+              </div>
+              <div class="tableList">
+                ${tableRows(voice.rows.map((r) => ({ title: r.name, sub: "Voice time", value: fmtDur(r.totalSeconds) })))}
+              </div>
+            </div>
+          </div>
+
+          <div class="listCard">
+            <div class="listHeader">
+              <div>
+                <h3 class="listTitle">Recent Moderation Actions</h3>
+                <p class="listSubtitle">Recent tracked moderation activity.</p>
+              </div>
+            </div>
+            <div class="tableList">
+              ${moderation.recent.length
+                ? tableRows(moderation.recent.map((r) => ({
+                    title: `${r.actionType} → ${r.targetName}`,
+                    sub: `By ${r.moderatorName}${r.reason ? ` · ${r.reason}` : ""}`,
+                    value: new Date(r.createdAt).toLocaleDateString(),
+                  })))
+                : `<p class="emptyState">No moderation data yet.</p>`}
             </div>
           </div>
         </div>
       </div>
     `;
-  }
+  };
 
-  function renderSettingsPage() {
-    setTopbar(
-      "Settings",
-      "Combined guild system overview and future feature controls.",
-      `${state.selectedGuildData.guild.name} / Settings`,
-      { showSave: false, showBack: true }
-    );
-    setActiveNav("settings");
+  const settingsPage = () => {
+    const g = state.guild;
+    setTop("Settings", "Combined guild system overview and workspace routing.", `${g.guild.name} / Settings`, false, true);
+    activeNav("settings");
 
-    qs("viewRoot").innerHTML = `
+    $("viewRoot").innerHTML = `
       <div class="routeView">
         <div class="quickGrid">
-          <div class="quickCard" onclick="Dashboard.goGuildPage('moderation')">
-            <h4>Moderation</h4>
-            <p>Configure mod log and purge archive channels.</p>
-          </div>
-          <div class="quickCard" onclick="Dashboard.goGuildPage('jail')">
-            <h4>Jail</h4>
-            <p>Manage jail role and jail channel settings.</p>
-          </div>
-          <div class="quickCard" onclick="Dashboard.goGuildPage('role-permissions')">
-            <h4>Role Permissions</h4>
-            <p>Per-command allowed role mapping.</p>
-          </div>
-          <div class="quickCard" onclick="Dashboard.goGuildPage('commands')">
-            <h4>Commands</h4>
-            <p>Browse loaded commands and usage data.</p>
-          </div>
+          <div class="quickCard" onclick="Dashboard.goGuildPage('moderation')"><h4>Moderation</h4><p>Configure mod log and purge archive channels.</p></div>
+          <div class="quickCard" onclick="Dashboard.goGuildPage('jail')"><h4>Jail</h4><p>Manage jail role and jail channel settings.</p></div>
+          <div class="quickCard" onclick="Dashboard.goGuildPage('role-permissions')"><h4>Role Permissions</h4><p>Per-command allowed role mapping.</p></div>
+          <div class="quickCard" onclick="Dashboard.goGuildPage('commands')"><h4>Commands</h4><p>Browse loaded commands and usage data.</p></div>
         </div>
       </div>
     `;
-  }
+  };
 
-  async function loadCommandRoles() {
-    if (!state.selectedGuildId || !state.selectedGuildData) return;
-
-    const commandName = qs("commandSelect").value;
-    if (!commandName) return;
-
-    try {
-      const data = await api(`/api/guild/${state.selectedGuildId}/command-roles/${encodeURIComponent(commandName)}`);
-      fillRoleMultiSelect(state.selectedGuildData.roles, data.roleIds || []);
-
-      qs("selectedRoleCount").textContent = `${(data.roles || []).length} selected`;
-
-      const chips = qs("selectedRoleChips");
-      if (!data.roles?.length) {
-        chips.innerHTML = `<span class="emptyChip">None configured.</span>`;
-      } else {
-        chips.innerHTML = data.roles
-          .map((role) => `<span class="roleChip">${escapeHtml(role.name)}</span>`)
-          .join("");
-      }
-    } catch (error) {
-      setSaveStatus(error.message || "Failed to load role permissions.", "error");
-    }
-  }
-
-  async function saveGuildSettings(page) {
+  const saveGuildSettings = async (page) => {
     const payload = {};
-
     if (page === "moderation") {
-      payload.modLogChannelId = qs("modLogChannel").value || null;
-      payload.purgeArchiveChannelId = qs("purgeArchiveChannel").value || null;
+      payload.modLogChannelId = $("modLogChannel").value || null;
+      payload.purgeArchiveChannelId = $("purgeArchiveChannel").value || null;
     }
-
     if (page === "jail") {
-      payload.jailChannelId = qs("jailChannel").value || null;
-      payload.jailRoleId = qs("jailRole").value || null;
+      payload.jailChannelId = $("jailChannel").value || null;
+      payload.jailRoleId = $("jailRole").value || null;
     }
 
     setSaveStatus("Saving settings...");
-
     try {
-      await api(`/api/guild/${state.selectedGuildId}/settings`, {
+      await api(`/api/guild/${state.guildId}/settings`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-
       setSaveStatus("Saved successfully.", "success");
-      await loadGuildData(state.selectedGuildId);
-    } catch (error) {
-      setSaveStatus(error.message || "Failed to save settings.", "error");
+      await loadGuild(state.guildId);
+    } catch (e) {
+      setSaveStatus(e.message || "Failed to save settings.", "error");
     }
-  }
+  };
 
-  async function saveCommandRoles() {
-    const commandName = qs("commandSelect").value;
-    const roleIds = getSelectedMultiValues("rolePermissionsSelect");
-
-    if (!commandName) {
-      setSaveStatus("Choose a command first.", "error");
-      return;
-    }
-
+  const saveCommandRoles = async () => {
+    const commandName = $("commandSelect").value;
+    if (!commandName) return setSaveStatus("Choose a command first.", "error");
     setSaveStatus("Saving role permissions...");
-
     try {
-      await api(`/api/guild/${state.selectedGuildId}/command-roles/${encodeURIComponent(commandName)}`, {
+      await api(`/api/guild/${state.guildId}/command-roles/${encodeURIComponent(commandName)}`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ roleIds }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roleIds: selectedMulti("rolePermissionsSelect") }),
       });
-
       setSaveStatus(`Saved role permissions for ${commandName}.`, "success");
       await loadCommandRoles();
-    } catch (error) {
-      setSaveStatus(error.message || "Failed to save role permissions.", "error");
+    } catch (e) {
+      setSaveStatus(e.message || "Failed to save role permissions.", "error");
     }
-  }
+  };
 
-  async function clearCommandRoles() {
-    const commandName = qs("commandSelect").value;
-    if (!commandName) {
-      setSaveStatus("Choose a command first.", "error");
-      return;
-    }
-
+  const clearCommandRoles = async () => {
+    const commandName = $("commandSelect").value;
+    if (!commandName) return setSaveStatus("Choose a command first.", "error");
     setSaveStatus("Clearing role permissions...");
-
     try {
-      await api(`/api/guild/${state.selectedGuildId}/command-roles/${encodeURIComponent(commandName)}`, {
-        method: "DELETE",
-      });
-
+      await api(`/api/guild/${state.guildId}/command-roles/${encodeURIComponent(commandName)}`, { method: "DELETE" });
       setSaveStatus(`Cleared role permissions for ${commandName}.`, "success");
       await loadCommandRoles();
-    } catch (error) {
-      setSaveStatus(error.message || "Failed to clear role permissions.", "error");
+    } catch (e) {
+      setSaveStatus(e.message || "Failed to clear role permissions.", "error");
     }
-  }
+  };
 
-  async function renderRoute() {
-    const loggedIn = await loadMe();
-
-    if (!loggedIn) {
-      qs("viewRoot").innerHTML = "";
-      qs("guildNavGroup").style.display = "none";
-      setTopbar("Welcome", "Login to open your server workspaces.", "Dashboard", {
-        showSave: false,
-        showBack: false,
-      });
+  const render = async () => {
+    const authed = await loadMe();
+    if (!authed) {
+      state.guildId = null;
+      state.guild = null;
+      $("viewRoot").innerHTML = "";
+      $("guildNavGroup").style.display = "none";
+      setTop("Welcome", "Login to open your server workspaces.", "Dashboard", false, false);
       return;
     }
 
     await loadGuilds();
-    const route = getRoute();
+    const r = route();
 
-    if (route.type === "home") {
-      state.selectedGuildId = null;
-      state.selectedGuildData = null;
-      const hero = await loadHealth();
-      renderHomePage(hero);
-      return;
+    if (r.type === "home") {
+      state.guildId = null;
+      state.guild = null;
+      return renderHome();
     }
 
-    if (route.type === "guild") {
-      try {
-        await loadGuildData(route.guildId);
-
-        switch (route.page) {
-          case "overview":
-            renderOverviewPage();
-            break;
-          case "moderation":
-            renderModerationPage();
-            break;
-          case "jail":
-            renderJailPage();
-            break;
-          case "role-permissions":
-            await renderRolePermissionsPage();
-            break;
-          case "commands":
-            renderCommandsPage();
-            break;
-          case "analytics":
-            renderAnalyticsPage();
-            break;
-          case "settings":
-            renderSettingsPage();
-            break;
-          default:
-            goGuildPage("overview", route.guildId, false);
-            return;
-        }
-      } catch (error) {
-        qs("viewRoot").innerHTML = `
-          <div class="authNotice routeView">
-            <h3>Guild load failed</h3>
-            <p>${escapeHtml(error.message || "Failed to load guild data.")}</p>
-            <button class="primaryButton" onclick="Dashboard.goHome()">Return Home</button>
-          </div>
-        `;
-      }
+    try {
+      await loadGuild(r.id);
+      if (r.page === "overview") return overview();
+      if (r.page === "moderation") return moderationPage();
+      if (r.page === "jail") return jailPage();
+      if (r.page === "role-permissions") return rolePermissionsPage();
+      if (r.page === "commands") return commandsPage();
+      if (r.page === "analytics") return analyticsPage();
+      if (r.page === "settings") return settingsPage();
+      return goGuildPage("overview", r.id);
+    } catch (e) {
+      $("viewRoot").innerHTML = `
+        <div class="authNotice routeView">
+          <h3>Guild load failed</h3>
+          <p>${esc(e.message || "Failed to load guild data.")}</p>
+          <button class="primaryButton" onclick="Dashboard.goHome()">Return Home</button>
+        </div>
+      `;
     }
-  }
+  };
 
-  function pushRoute(path, render = true) {
-    window.history.pushState({}, "", path);
-    if (render) {
-      renderRoute();
-    }
-  }
+  const saveCurrentPage = () => {
+    const r = route();
+    if (r.type !== "guild") return;
+    if (r.page === "moderation") return saveGuildSettings("moderation");
+    if (r.page === "jail") return saveGuildSettings("jail");
+  };
 
-  function goHome(render = true) {
-    pushRoute("/", render);
-  }
-
-  function goGuildPage(page, guildId = state.selectedGuildId, render = true) {
-    if (!guildId) return;
-    pushRoute(`/guild/${guildId}/${page}`, render);
-  }
-
-  function loginWithDiscord() {
-    window.location.href = "/auth/login";
-  }
-
-  async function logout() {
-    await fetch("/auth/logout", { method: "POST" });
-    window.location.href = "/";
-  }
-
-  function saveCurrentPage() {
-    const route = getRoute();
-    if (route.type !== "guild") return;
-
-    if (route.page === "moderation") {
-      saveGuildSettings("moderation");
-      return;
-    }
-
-    if (route.page === "jail") {
-      saveGuildSettings("jail");
-      return;
-    }
-  }
-
-  window.addEventListener("popstate", renderRoute);
+  window.addEventListener("popstate", render);
 
   return {
-    init: renderRoute,
+    init: render,
     goHome,
     goGuildPage,
-    loginWithDiscord,
-    logout,
+    loginWithDiscord: () => { location.href = "/auth/login"; },
+    logout: async () => { await fetch("/auth/logout", { method: "POST" }); location.href = "/"; },
     saveCurrentPage,
     saveCommandRoles,
     clearCommandRoles,

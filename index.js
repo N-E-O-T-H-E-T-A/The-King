@@ -18,6 +18,11 @@ const initDatabase = require("./database/init");
 const { restoreTempBans } = require("./structures/helpers/tempBanScheduler");
 const { buildHelpMap } = require("./structures/helpers/buildHelpData");
 const { canUseCommandByConfiguredRoles } = require("./structures/helpers/commandRoleAccess");
+const {
+  ensureAnalyticsTables,
+  recordCommandUse,
+  recordModerationAction,
+} = require("./structures/helpers/database/analytics");
 
 const TOKEN = process.env.DISCORD_TOKEN;
 const PREFIX = process.env.PREFIX || "tk";
@@ -40,10 +45,12 @@ const client = new Client({
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildModeration,
     GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.GuildMessageReactions,
+    GatewayIntentBits.GuildVoiceStates,
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.DirectMessages,
   ],
-  partials: [Partials.Channel, Partials.Message, Partials.User],
+  partials: [Partials.Channel, Partials.Message, Partials.User, Partials.Reaction],
 });
 
 client.commands = new Collection();
@@ -72,74 +79,50 @@ function getAllJsFiles(dir, fileList = []) {
   return fileList;
 }
 
-function downloadFile(url, dest, redirectCount = 0) {
+function downloadCloudflared(dest) {
   return new Promise((resolve, reject) => {
-    if (redirectCount > 5) {
-      return reject(new Error("Too many redirects"));
-    }
-
     const file = fs.createWriteStream(dest);
 
-    https
-      .get(url, (res) => {
-        const status = res.statusCode || 0;
+    function request(url, redirectCount = 0) {
+      if (redirectCount > 5) {
+        reject(new Error("Too many redirects"));
+        return;
+      }
 
-        if ([301, 302, 303, 307, 308].includes(status) && res.headers.location) {
-          file.close(() => {});
-          try {
-            fs.unlinkSync(dest);
-          } catch {}
-
+      https.get(url, (res) => {
+        if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
           const nextUrl = res.headers.location.startsWith("http")
             ? res.headers.location
             : new URL(res.headers.location, url).toString();
 
-          return resolve(downloadFile(nextUrl, dest, redirectCount + 1));
+          request(nextUrl, redirectCount + 1);
+          return;
         }
 
-        if (status !== 200) {
-          file.close(() => {});
-          try {
-            fs.unlinkSync(dest);
-          } catch {}
-          return reject(new Error(`Download failed: ${status}`));
+        if (res.statusCode !== 200) {
+          reject(new Error(`Download failed: ${res.statusCode}`));
+          return;
         }
 
         res.pipe(file);
 
         file.on("finish", () => {
           file.close(() => {
-            try {
-              fs.chmodSync(dest, 0o755);
-              resolve();
-            } catch (err) {
-              reject(err);
-            }
+            fs.chmodSync(dest, 0o755);
+            resolve();
           });
         });
-      })
-      .on("error", (err) => {
-        file.close(() => {});
-        try {
-          fs.unlinkSync(dest);
-        } catch {}
-        reject(err);
-      });
-  });
-}
+      }).on("error", reject);
+    }
 
-function downloadCloudflared(dest) {
-  return downloadFile(
-    "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64",
-    dest
-  );
+    request("https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64");
+  });
 }
 
 async function startCloudflareTunnel() {
   console.log("[TUNNEL] startCloudflareTunnel() called");
 
   const tunnelToken = process.env.TUNNEL_TOKEN;
-
   if (!tunnelToken) {
     console.warn("[TUNNEL] No TUNNEL_TOKEN found");
     return;
@@ -166,16 +149,22 @@ async function startCloudflareTunnel() {
     return;
   }
 
-  console.log("[TUNNEL] Starting Cloudflare Tunnel...");
+  const args = [
+    "tunnel",
+    "--loglevel",
+    "debug",
+    "--no-autoupdate",
+    "run",
+    "--token",
+    tunnelToken,
+  ];
 
-  const proc = spawn(
-    cloudflaredPath,
-    ["tunnel", "--no-autoupdate", "run", "--token", tunnelToken],
-    {
-      cwd: __dirname,
-      stdio: ["ignore", "pipe", "pipe"],
-    }
-  );
+  console.log("[TUNNEL] Starting Cloudflare Tunnel with args:", args.slice(0, 5).join(" "), "[token hidden]");
+
+  const proc = spawn(cloudflaredPath, args, {
+    cwd: __dirname,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
 
   proc.stdout.on("data", (data) => {
     process.stdout.write(`[TUNNEL] ${data}`);
@@ -183,6 +172,10 @@ async function startCloudflareTunnel() {
 
   proc.stderr.on("data", (data) => {
     process.stderr.write(`[TUNNEL ERROR] ${data}`);
+  });
+
+  proc.on("spawn", () => {
+    console.log("[TUNNEL] cloudflared process spawned");
   });
 
   proc.on("error", (err) => {
@@ -324,6 +317,37 @@ async function runSharedCommand(source, type, command, args = []) {
     }
 
     await command.run(ctx);
+
+    const guildId = source.guild?.id || source.guildId || null;
+    const actorId = source.user?.id || source.author?.id || null;
+
+    if (guildId) {
+      recordCommandUse({
+        guildId,
+        commandName: command.name,
+      });
+
+      const modCommands = new Set([
+        "ban",
+        "mban",
+        "timeout",
+        "untimeout",
+        "purge",
+        "jail",
+        "unjail",
+        "unjailall",
+        "reason",
+        "case",
+      ]);
+
+      if (modCommands.has(command.name)) {
+        recordModerationAction({
+          guildId,
+          actionType: command.name,
+          moderatorId: actorId,
+        });
+      }
+    }
   } catch (error) {
     console.error(`[COMMAND ERROR] ${command.name}`, error);
 
@@ -497,80 +521,10 @@ client.on(Events.MessageCreate, async (message) => {
 });
 
 initDatabase();
+ensureAnalyticsTables();
 loadCommands();
 loadEvents();
 loadFeatures();
-
-async function startCloudflareTunnel() {
-  console.log("[TUNNEL] startCloudflareTunnel() called");
-
-  const tunnelToken = process.env.TUNNEL_TOKEN;
-
-  if (!tunnelToken) {
-    console.warn("[TUNNEL] No TUNNEL_TOKEN found");
-    return;
-  }
-
-  const cloudflaredPath = path.join(__dirname, "cloudflared");
-
-  if (!fs.existsSync(cloudflaredPath)) {
-    console.log("[TUNNEL] cloudflared not found, downloading...");
-    try {
-      await downloadCloudflared(cloudflaredPath);
-      console.log("[TUNNEL] Download complete");
-    } catch (err) {
-      console.error("[TUNNEL] Download failed:", err);
-      return;
-    }
-  }
-
-  try {
-    fs.chmodSync(cloudflaredPath, 0o755);
-    console.log("[TUNNEL] Ensured executable permissions on cloudflared");
-  } catch (err) {
-    console.error("[TUNNEL] Failed to chmod cloudflared:", err);
-    return;
-  }
-
-  const args = [
-    "tunnel",
-    "--loglevel",
-    "debug",
-    "--no-autoupdate",
-    "run",
-    "--token",
-    tunnelToken,
-  ];
-
-  console.log("[TUNNEL] Starting Cloudflare Tunnel with args:", args.slice(0, 5).join(" "), "[token hidden]");
-
-  const proc = spawn(cloudflaredPath, args, {
-    cwd: __dirname,
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-
-  proc.stdout.on("data", (data) => {
-    process.stdout.write(`[TUNNEL] ${data}`);
-  });
-
-  proc.stderr.on("data", (data) => {
-    process.stderr.write(`[TUNNEL ERROR] ${data}`);
-  });
-
-  proc.on("spawn", () => {
-    console.log("[TUNNEL] cloudflared process spawned");
-  });
-
-  proc.on("error", (err) => {
-    console.error("[TUNNEL ERROR] Failed to start:", err);
-  });
-
-  proc.on("exit", (code, signal) => {
-    console.warn(`[TUNNEL] Exited code=${code} signal=${signal}`);
-  });
-
-  return proc;
-}
 
 startCloudflareTunnel();
 
