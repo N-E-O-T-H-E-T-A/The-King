@@ -66,6 +66,30 @@ function setPurgeArchiveChannel(guildId, channelId) {
   return getGuildSettings(guildId);
 }
 
+function getGuildSettings(guildId) {
+  const row = db.prepare(`
+    SELECT guild_id, mod_log_channel_id, purge_archive_channel_id, prefix
+    FROM guild_settings
+    WHERE guild_id = ?
+  `).get(guildId);
+
+  return row || {
+    guild_id: guildId,
+    mod_log_channel_id: null,
+    purge_archive_channel_id: null,
+    prefix: null,
+  };
+}
+
+function setGuildPrefix(guildId, prefix) {
+  db.prepare(`
+    INSERT INTO guild_settings (guild_id, prefix)
+    VALUES (?, ?)
+    ON CONFLICT(guild_id)
+    DO UPDATE SET prefix = excluded.prefix
+  `).run(guildId, prefix);
+}
+
 module.exports = {
   ensureGuildSettings,
   getGuildSettings,

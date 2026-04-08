@@ -23,6 +23,7 @@ const {
   recordCommandUse,
   recordModerationAction,
 } = require("./structures/helpers/database/analytics");
+const { getGuildSettings } = require("./structures/helpers/database/guildSettings");
 
 const TOKEN = process.env.DISCORD_TOKEN;
 const PREFIX = process.env.PREFIX || "tk";
@@ -496,9 +497,12 @@ client.on(Events.MessageCreate, async (message) => {
     if (!message.guild) return;
     if (message.author.bot) return;
     if (!message.content) return;
-    if (!message.content.startsWith(client.config.prefix)) return;
+    const guildSettings = getGuildSettings(message.guild.id);
+const activePrefix = guildSettings?.prefix || client.config.prefix;
 
-    const raw = message.content.slice(client.config.prefix.length).trim();
+if (!message.content.startsWith(activePrefix)) return;
+
+const raw = message.content.slice(activePrefix.length).trim();
     if (!raw.length) return;
 
     const parts = raw.split(/\s+/);

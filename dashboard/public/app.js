@@ -913,35 +913,91 @@ const Dashboard = (() => {
   };
 
   const settingsPage = () => {
-    const g = state.guild;
+  const g = state.guild;
+  const s = g.settings || {};
 
-    setTop("Settings", "Combined guild system overview and workspace routing.", `${g.guild.name} / Settings`, false, true);
-    activeNav("settings");
+  setTop("Settings", "Combined guild system settings.", `${g.guild.name} / Settings`, true, true);
+  activeNav("settings");
 
-    $("viewRoot").innerHTML = `
-      <div class="routeView">
-        <div class="quickGrid">
-          <div class="quickCard" onclick="Dashboard.goGuildPage('moderation')"><h4>Moderation</h4><p>Configure mod log and purge archive channels.</p></div>
-          <div class="quickCard" onclick="Dashboard.goGuildPage('jail')"><h4>Jail</h4><p>Manage jail role and jail channel settings.</p></div>
-          <div class="quickCard" onclick="Dashboard.goGuildPage('role-permissions')"><h4>Role Permissions</h4><p>Per-command allowed role mapping.</p></div>
-          <div class="quickCard" onclick="Dashboard.goGuildPage('commands')"><h4>Commands</h4><p>Browse loaded commands and usage data.</p></div>
+  $("viewRoot").innerHTML = `
+    <div class="routeView">
+      <div id="saveStatus" class="saveStatus"></div>
+
+      <div class="sectionGrid">
+        <div class="settingCard">
+          <label for="guildPrefix">Bot Prefix</label>
+          <input
+            id="guildPrefix"
+            class="commandSearch"
+            type="text"
+            maxlength="10"
+            placeholder="Enter prefix"
+            value="${esc(s.prefix || "")}"
+          />
+          <div class="fieldHelp">
+            Leave blank to use the default global prefix.
+          </div>
+        </div>
+
+        <div class="settingCard">
+          <label>Current Behavior</label>
+          <div class="fieldHelp">
+            This guild currently uses:
+            <strong>${esc(s.prefix || state.guild?.defaultPrefix || "default prefix")}</strong>
+          </div>
+          <div class="fieldHelp">
+            This affects prefix commands only.
+          </div>
         </div>
       </div>
-    `;
-  };
+
+      <div class="quickGrid" style="margin-top:18px;">
+        <div class="quickCard" onclick="Dashboard.goGuildPage('moderation')"><h4>Moderation</h4><p>Configure mod log and purge archive channels.</p></div>
+        <div class="quickCard" onclick="Dashboard.goGuildPage('jail')"><h4>Jail</h4><p>Manage jail role and jail channel settings.</p></div>
+        <div class="quickCard" onclick="Dashboard.goGuildPage('role-permissions')"><h4>Role Permissions</h4><p>Per-command allowed role mapping.</p></div>
+        <div class="quickCard" onclick="Dashboard.goGuildPage('commands')"><h4>Commands</h4><p>Browse loaded commands and usage data.</p></div>
+      </div>
+    </div>
+  `;
+};
 
   const saveGuildSettings = async (page) => {
-    const payload = {};
+  const payload = {};
 
-    if (page === "moderation") {
-      payload.modLogChannelId = $("modLogChannel")?.value || null;
-      payload.purgeArchiveChannelId = $("purgeArchiveChannel")?.value || null;
-    }
+  if (page === "moderation") {
+    payload.modLogChannelId = $("modLogChannel")?.value || null;
+    payload.purgeArchiveChannelId = $("purgeArchiveChannel")?.value || null;
+  }
 
-    if (page === "jail") {
-      payload.jailChannelId = $("jailChannel")?.value || null;
-      payload.jailRoleId = $("jailRole")?.value || null;
-    }
+  if (page === "jail") {
+    payload.jailChannelId = $("jailChannel")?.value || null;
+    payload.jailRoleId = $("jailRole")?.value || null;
+  }
+
+  if (page === "settings") {
+    payload.prefix = $("guildPrefix")?.value?.trim() || null;
+  }
+
+  setSaveStatus("Saving settings...");
+
+  try {
+    await api(`/api/guild/${state.guildId}/settings`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    await loadGuild(state.guildId);
+
+    if (page === "moderation") moderationPage();
+    if (page === "jail") jailPage();
+    if (page === "settings") settingsPage();
+
+    setSaveStatus("Saved successfully.", "success");
+  } catch (e) {
+    setSaveStatus(e.message || "Failed to save settings.", "error");
+  }
+};
 
     setSaveStatus("Saving settings...");
 
@@ -1008,22 +1064,16 @@ const Dashboard = (() => {
   };
 
   const saveCurrentPage = async () => {
-    const r = route();
+  const r = route();
 
-    if (r.type !== "guild") return;
+  if (r.type !== "guild") return;
 
-    if (r.page === "moderation") {
-      await saveGuildSettings("moderation");
-      return;
-    }
+  if (r.page === "moderation") return saveGuildSettings("moderation");
+  if (r.page === "jail") return saveGuildSettings("jail");
+  if (r.page === "settings") return saveGuildSettings("settings");
 
-    if (r.page === "jail") {
-      await saveGuildSettings("jail");
-      return;
-    }
-
-    setSaveStatus("This page does not support Save Changes.", "error");
-  };
+  setSaveStatus("This page does not support Save Changes.", "error");
+};
 
   const render = async () => {
     const authed = await loadMe();
