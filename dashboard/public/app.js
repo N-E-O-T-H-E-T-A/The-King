@@ -978,26 +978,7 @@ const Dashboard = (() => {
     payload.prefix = $("guildPrefix")?.value?.trim() || null;
   }
 
-  setSaveStatus("Saving settings...");
 
-  try {
-    await api(`/api/guild/${state.guildId}/settings`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-
-    await loadGuild(state.guildId);
-
-    if (page === "moderation") moderationPage();
-    if (page === "jail") jailPage();
-    if (page === "settings") settingsPage();
-
-    setSaveStatus("Saved successfully.", "success");
-  } catch (e) {
-    setSaveStatus(e.message || "Failed to save settings.", "error");
-  }
-};
 
     setSaveStatus("Saving settings...");
 
