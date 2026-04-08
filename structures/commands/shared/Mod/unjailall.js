@@ -1,6 +1,6 @@
 const { PermissionFlagsBits } = require("discord.js");
 const { getAllJailedUsers, unjailMember } = require("../../../helpers/jailManager");
-const { createCaseAndLog } = require("../../../helpers/modLog");
+const { createCaseAndLog } = require("../../../helpers/modlog");
 
 module.exports = {
   name: "unjailall",

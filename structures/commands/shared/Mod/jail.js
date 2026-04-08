@@ -1,6 +1,6 @@
 const { PermissionFlagsBits } = require("discord.js");
 const { jailMember } = require("../../../helpers/jailManager");
-const { createCaseAndLog } = require("../../../helpers/modLog");
+const { createCaseAndLog } = require("../../../helpers/modlog");
 
 module.exports = {
   name: "jail",
