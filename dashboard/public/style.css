@@ -46,6 +46,120 @@ body {
   min-height: 100vh;
 }
 
+.nativeHidden {
+  display: none;
+}
+
+.customSelect {
+  position: relative;
+  width: 100%;
+}
+
+.customSelectTrigger {
+  width: 100%;
+  background: #121827;
+  color: #edf2ff;
+  border: 1px solid rgba(114, 133, 180, 0.28);
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-size: 14px;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.customSelectTrigger:hover {
+  border-color: rgba(114, 133, 180, 0.44);
+}
+
+.customSelect.open .customSelectTrigger {
+  border-color: rgba(109, 125, 255, 0.75);
+  box-shadow: 0 0 0 4px rgba(109, 125, 255, 0.12);
+  background: #141b2c;
+}
+
+.customSelectValue {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.customSelectArrow {
+  color: #9eabc8;
+  font-size: 13px;
+}
+
+.customSelectMenu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  background: #0f1626;
+  border: 1px solid rgba(114, 133, 180, 0.22);
+  border-radius: 16px;
+  box-shadow: 0 20px 35px rgba(0, 0, 0, 0.35);
+  padding: 10px;
+  z-index: 9999;
+  display: none;
+}
+
+.customSelect.open .customSelectMenu {
+  display: block;
+}
+
+.customSelectSearchWrap {
+  margin-bottom: 8px;
+}
+
+.customSelectSearch {
+  width: 100%;
+  background: #121b2c;
+  color: #edf2ff;
+  border: 1px solid rgba(114, 133, 180, 0.22);
+  border-radius: 12px;
+  padding: 10px 12px;
+  outline: none;
+}
+
+.customSelectSearch:focus {
+  border-color: rgba(109, 125, 255, 0.75);
+  box-shadow: 0 0 0 4px rgba(109, 125, 255, 0.12);
+}
+
+.customSelectOptions {
+  max-height: 260px;
+  overflow-y: auto;
+  display: grid;
+  gap: 6px;
+}
+
+.customSelectOption {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  color: #edf2ff;
+  border-radius: 12px;
+  padding: 10px 12px;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.customSelectOption:hover {
+  background: rgba(109, 125, 255, 0.12);
+  border-color: rgba(109, 125, 255, 0.18);
+  transform: none;
+}
+
+.customSelectOption.active {
+  background: linear-gradient(135deg, rgba(109, 125, 255, 0.18), rgba(139, 92, 246, 0.14));
+  border-color: rgba(109, 125, 255, 0.28);
+}
+
 .sidebar {
   position: sticky;
   top: 0;
