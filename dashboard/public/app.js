@@ -118,9 +118,79 @@ const Dashboard = (() => {
       const open = wrap.classList.contains("open");
       closeSelects(wrap);
       wrap.classList.toggle("open", !open);
-      if (!open) { search.value = ""; renderOpts(""); setTimeout(() => search.focus(), 0); }
+      if (!open) {
+        search.value = "";
+        renderOpts("");
+        setTimeout(() => search.focus(), 0);
+      }
     };
     search.oninput = () => renderOpts(search.value);
+  }
+
+  function buildMultiRolePicker(containerId, roles, selectedIds = [], onChange = null) {
+    const mount = $(containerId);
+    if (!mount) return;
+
+    let chosen = new Set(selectedIds);
+
+    const render = (filter = "") => {
+      const q = filter.trim().toLowerCase();
+      const visible = roles.filter((r) => r.name.toLowerCase().includes(q));
+
+      mount.innerHTML = `
+        <div class="rolePicker">
+          <div class="rolePickerSearchWrap">
+            <input id="rolePickerSearch" class="commandSearch" type="text" placeholder="Search roles..." value="${esc(filter)}" />
+          </div>
+          <div class="rolePickerSelected" id="rolePickerSelected">
+            ${[...chosen].length
+              ? roles.filter((r) => chosen.has(r.id)).map((r) => `<button type="button" class="roleTag selected" data-role-remove="${esc(r.id)}">${esc(r.name)} ✕</button>`).join("")
+              : `<span class="emptyChip">No roles selected.</span>`}
+          </div>
+          <div class="rolePickerList">
+            ${visible.map((r) => `
+              <button
+                type="button"
+                class="rolePickerItem ${chosen.has(r.id) ? "active" : ""}"
+                data-role-id="${esc(r.id)}"
+              >
+                <span>${esc(r.name)}</span>
+                <span>${chosen.has(r.id) ? "Selected" : "Add"}</span>
+              </button>
+            `).join("")}
+          </div>
+        </div>
+      `;
+
+      $("rolePickerSearch").oninput = (e) => render(e.target.value);
+
+      mount.querySelectorAll("[data-role-id]").forEach((btn) => {
+        btn.onclick = () => {
+          const id = btn.dataset.roleId;
+          if (chosen.has(id)) chosen.delete(id);
+          else chosen.add(id);
+          render(filter);
+          onChange && onChange([...chosen]);
+        };
+      });
+
+      mount.querySelectorAll("[data-role-remove]").forEach((btn) => {
+        btn.onclick = () => {
+          chosen.delete(btn.dataset.roleRemove);
+          render(filter);
+          onChange && onChange([...chosen]);
+        };
+      });
+    };
+
+    render("");
+    return {
+      getValues: () => [...chosen],
+      setValues: (vals) => {
+        chosen = new Set(vals || []);
+        render("");
+      },
+    };
   }
 
   document.addEventListener("click", (e) => { if (!e.target.closest(".customSelect")) closeSelects(); });
@@ -132,19 +202,6 @@ const Dashboard = (() => {
     rows.forEach((r) => s.appendChild(makeOption(r.id, r[labelKey], selected)));
     buildSelect(id, onChange);
   };
-
-  const fillMultiRoles = (roles, selectedIds = []) => {
-    const s = $("rolePermissionsSelect");
-    if (!s) return;
-    s.innerHTML = "";
-    roles.forEach((r) => {
-      const o = makeOption(r.id, r.name);
-      o.selected = selectedIds.includes(r.id);
-      s.appendChild(o);
-    });
-  };
-
-  const selectedMulti = (id) => [...$(id).selectedOptions].map((o) => o.value);
 
   const setUserUI = (authed, user) => {
     $("authNotice").style.display = authed ? "none" : "block";
@@ -211,6 +268,37 @@ const Dashboard = (() => {
     </div>
   `).join("");
 
+  const linePath = (series) => {
+    const w = 1000, h = 260, pad = 24;
+    const vals = series.map((x) => Number(x.value || 0));
+    const max = Math.max(...vals, 1);
+    return series.map((p, i) => {
+      const x = pad + (i * (w - pad * 2)) / Math.max(series.length - 1, 1);
+      const y = h - pad - ((Number(p.value || 0) / max) * (h - pad * 2));
+      return `${i ? "L" : "M"} ${x} ${y}`;
+    }).join(" ");
+  };
+
+  const chartSvg = (series) => {
+    const labels = series.map((s, i) => {
+      const x = 24 + (i * 952) / Math.max(series.length - 1, 1);
+      return `<text x="${x}" y="250" text-anchor="middle" fill="rgba(255,255,255,.45)" font-size="12">${esc((s.day || "").slice(5))}</text>`;
+    }).join("");
+    return `
+      <svg viewBox="0 0 1000 260" class="realChart" preserveAspectRatio="none">
+        ${[1,2,3,4].map(i => `<line x1="24" y1="${i*50}" x2="976" y2="${i*50}" stroke="rgba(255,255,255,.05)" />`).join("")}
+        <path d="${linePath(series)}" fill="none" stroke="url(#g)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></path>
+        <defs>
+          <linearGradient id="g" x1="0%" x2="100%">
+            <stop offset="0%" stop-color="#7ea0ff"></stop>
+            <stop offset="100%" stop-color="#9c7bff"></stop>
+          </linearGradient>
+        </defs>
+        ${labels}
+      </svg>
+    `;
+  };
+
   const heroHome = async () => {
     const h = await api("/api/health");
     return `
@@ -225,7 +313,7 @@ const Dashboard = (() => {
             ${metric("Bot", h.bot?.tag || "Offline", "Connected identity", false)}
             ${metric("Guilds", h.guilds ?? "Unknown", "Servers currently loaded")}
             ${metric("Uptime", fmtUptime(h.uptime), "Current process runtime")}
-            ${metric("Mode", "Phase 2", "Analytics enabled")}
+            ${metric("Mode", "Phase 3", "Workspace expansion")}
           </div>
         </div>
       </div>
@@ -235,6 +323,7 @@ const Dashboard = (() => {
   const renderHome = async () => {
     setTop("Dashboard", "Choose a server to open its workspace and analytics.", "Dashboard", false, false);
     activeNav(null);
+
     const cards = state.guilds.length
       ? state.guilds.map((g) => `
           <div class="quickCard" onclick="Dashboard.goGuildPage('overview','${g.id}')">
@@ -259,37 +348,6 @@ const Dashboard = (() => {
           </div>
         </div>
       </div>
-    `;
-  };
-
-  const linePath = (series) => {
-    const w = 1000, h = 260, pad = 24;
-    const vals = series.map((x) => Number(x.value || 0));
-    const max = Math.max(...vals, 1);
-    return series.map((p, i) => {
-      const x = pad + (i * (w - pad * 2)) / Math.max(series.length - 1, 1);
-      const y = h - pad - ((Number(p.value || 0) / max) * (h - pad * 2));
-      return `${i ? "L" : "M"} ${x} ${y}`;
-    }).join(" ");
-  };
-
-  const chartSvg = (series) => {
-    const labels = series.map((s, i) => {
-      const x = 24 + (i * (952)) / Math.max(series.length - 1, 1);
-      return `<text x="${x}" y="250" text-anchor="middle" fill="rgba(255,255,255,.45)" font-size="12">${esc((s.day || "").slice(5))}</text>`;
-    }).join("");
-    return `
-      <svg viewBox="0 0 1000 260" class="realChart" preserveAspectRatio="none">
-        ${[1,2,3,4].map(i => `<line x1="24" y1="${i*50}" x2="976" y2="${i*50}" stroke="rgba(255,255,255,.05)" />`).join("")}
-        <path d="${linePath(series)}" fill="none" stroke="url(#g)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></path>
-        <defs>
-          <linearGradient id="g" x1="0%" x2="100%">
-            <stop offset="0%" stop-color="#7ea0ff"></stop>
-            <stop offset="100%" stop-color="#9c7bff"></stop>
-          </linearGradient>
-        </defs>
-        ${labels}
-      </svg>
     `;
   };
 
@@ -332,19 +390,18 @@ const Dashboard = (() => {
             <div class="listCard">
               <div class="listHeader">
                 <div>
-                  <h3 class="listTitle">Quick Links</h3>
-                  <p class="listSubtitle">Open system pages for this guild.</p>
+                  <h3 class="listTitle">Recent Activity Feed</h3>
+                  <p class="listSubtitle">Most recent tracked moderation activity.</p>
                 </div>
               </div>
               <div class="tableList">
-                ${tableRows([
-                  { title: "Moderation", sub: "Configure mod log and purge archive", value: "Open" },
-                  { title: "Jail", sub: "Set jail role and jail channel", value: "Open" },
-                  { title: "Role Permissions", sub: "Limit commands by role", value: "Open" },
-                  { title: "Commands", sub: "Browse loaded commands", value: "Open" },
-                  { title: "Analytics", sub: "Full tracked analytics", value: "Open" },
-                  { title: "Settings", sub: "Combined guild settings", value: "Open" },
-                ].map((r, i) => ({ ...r, click: i })))}
+                ${moderation.recent.length
+                  ? tableRows(moderation.recent.slice(0, 6).map((r) => ({
+                      title: `${r.actionType} → ${r.targetName}`,
+                      sub: `By ${r.moderatorName}${r.reason ? ` · ${r.reason}` : ""}`,
+                      value: new Date(r.createdAt).toLocaleDateString(),
+                    })))
+                  : `<p class="emptyState">No tracked actions yet.</p>`}
               </div>
             </div>
           </div>
@@ -384,22 +441,18 @@ const Dashboard = (() => {
               <h4>Voice Leader</h4>
               <p>${voice.rows[0] ? `${voice.rows[0].name} · ${fmtDur(voice.rows[0].totalSeconds)}` : "No voice data yet"}</p>
             </div>
-            <div class="quickCard" onclick="Dashboard.goGuildPage('analytics')">
-              <h4>Recent Mod Action</h4>
-              <p>${moderation.recent[0] ? `${moderation.recent[0].actionType} by ${moderation.recent[0].moderatorName}` : "No mod actions yet"}</p>
+            <div class="quickCard" onclick="Dashboard.goGuildPage('logs')">
+              <h4>Logs</h4>
+              <p>Open the dedicated logs page for moderation activity.</p>
             </div>
-            <div class="quickCard" onclick="Dashboard.goGuildPage('settings')">
-              <h4>System Health</h4>
-              <p>Analytics and workspace routes are live.</p>
+            <div class="quickCard" onclick="Dashboard.goGuildPage('automation')">
+              <h4>Automation</h4>
+              <p>Configure future workflows and recurring systems.</p>
             </div>
           </div>
         </div>
       </div>
     `;
-
-    const rows = [...document.querySelectorAll(".tableRow")];
-    const pages = ["moderation", "jail", "role-permissions", "commands", "analytics", "settings"];
-    rows.slice(0, 6).forEach((row, i) => row.style.cursor = "pointer", row.onclick = () => goGuildPage(pages[i]));
   };
 
   const moderationPage = () => {
@@ -462,12 +515,14 @@ const Dashboard = (() => {
     fillSelect("jailRole", g.roles, j.jail_role_id || "");
   };
 
+  let rolePickerApi = null;
+
   const loadCommandRoles = async () => {
     const commandName = $("commandSelect").value;
     if (!commandName) return;
     try {
       const data = await api(`/api/guild/${state.guildId}/command-roles/${encodeURIComponent(commandName)}`);
-      fillMultiRoles(state.guild.roles, data.roleIds || []);
+      rolePickerApi = buildMultiRolePicker("rolePermissionsPicker", state.guild.roles, data.roleIds || []);
       $("selectedRoleCount").textContent = `${(data.roles || []).length} selected`;
       $("selectedRoleChips").innerHTML = data.roles?.length
         ? data.roles.map((r) => `<span class="roleChip">${esc(r.name)}</span>`).join("")
@@ -493,9 +548,9 @@ const Dashboard = (() => {
             <div class="fieldHelp">Pick the command you want to lock down.</div>
           </div>
           <div class="settingCard">
-            <label for="rolePermissionsSelect">Allowed Roles</label>
-            <select id="rolePermissionsSelect" class="multiSelect" multiple size="10"></select>
-            <div class="fieldHelp">Hold Ctrl or Cmd to select multiple roles.</div>
+            <label>Allowed Roles</label>
+            <div id="rolePermissionsPicker"></div>
+            <div class="fieldHelp">Search, add, and remove roles without the ugly native multi-select.</div>
           </div>
         </div>
 
@@ -665,23 +720,69 @@ const Dashboard = (() => {
               </div>
             </div>
           </div>
+        </div>
+      </div>
+    `;
+  };
 
-          <div class="listCard">
-            <div class="listHeader">
-              <div>
-                <h3 class="listTitle">Recent Moderation Actions</h3>
-                <p class="listSubtitle">Recent tracked moderation activity.</p>
-              </div>
+  const logsPage = async () => {
+    const g = state.guild;
+    const moderation = await api(`/api/guild/${state.guildId}/analytics/moderation?days=30`);
+
+    setTop("Logs", "Recent moderation activity and tracked enforcement actions.", `${g.guild.name} / Logs`, false, true);
+    activeNav("logs");
+
+    $("viewRoot").innerHTML = `
+      <div class="routeView">
+        <div class="panelCard">
+          <div class="panelHeader">
+            <div>
+              <h3 class="panelTitle">Recent Moderation Logs</h3>
+              <p class="panelSubtitle">Latest tracked moderation actions from analytics.</p>
             </div>
-            <div class="tableList">
-              ${moderation.recent.length
-                ? tableRows(moderation.recent.map((r) => ({
-                    title: `${r.actionType} → ${r.targetName}`,
-                    sub: `By ${r.moderatorName}${r.reason ? ` · ${r.reason}` : ""}`,
-                    value: new Date(r.createdAt).toLocaleDateString(),
-                  })))
-                : `<p class="emptyState">No moderation data yet.</p>`}
+          </div>
+          <div class="tableList">
+            ${moderation.recent.length
+              ? tableRows(moderation.recent.map((r) => ({
+                  title: `${r.actionType} → ${r.targetName}`,
+                  sub: `By ${r.moderatorName}${r.reason ? ` · ${r.reason}` : ""}`,
+                  value: new Date(r.createdAt).toLocaleString(),
+                })))
+              : `<p class="emptyState">No moderation logs yet.</p>`}
+          </div>
+        </div>
+      </div>
+    `;
+  };
+
+  const automationPage = () => {
+    const g = state.guild;
+    setTop("Automation", "Future automation center for reminders, workflows, and moderation systems.", `${g.guild.name} / Automation`, false, true);
+    activeNav("automation");
+
+    $("viewRoot").innerHTML = `
+      <div class="routeView">
+        <div class="quickGrid">
+          <div class="quickCard"><h4>AFK System</h4><p>Currently active in bot logic. Dashboard controls can be added next.</p></div>
+          <div class="quickCard"><h4>Temp Bans</h4><p>Restore system already exists. Future page can show active timers.</p></div>
+          <div class="quickCard"><h4>Scheduled Rules</h4><p>Future place for repeating moderation jobs and reminders.</p></div>
+          <div class="quickCard"><h4>Alert Center</h4><p>Future system for threshold-based notifications and logs.</p></div>
+        </div>
+
+        <div class="panelCard" style="margin-top:18px;">
+          <div class="panelHeader">
+            <div>
+              <h3 class="panelTitle">Planned Automation Modules</h3>
+              <p class="panelSubtitle">Architecture placeholder for future backend systems.</p>
             </div>
+          </div>
+          <div class="tableList">
+            ${tableRows([
+              { title: "Active temp punishments", sub: "Show current timed bans/timeouts", value: "Planned" },
+              { title: "Auto moderation presets", sub: "Thresholds and presets", value: "Planned" },
+              { title: "Keyword monitors", sub: "Watchlist and alerts", value: "Planned" },
+              { title: "Recurring maintenance", sub: "Scheduled cleanup and archive jobs", value: "Planned" },
+            ])}
           </div>
         </div>
       </div>
@@ -738,7 +839,7 @@ const Dashboard = (() => {
       await api(`/api/guild/${state.guildId}/command-roles/${encodeURIComponent(commandName)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ roleIds: selectedMulti("rolePermissionsSelect") }),
+        body: JSON.stringify({ roleIds: rolePickerApi ? rolePickerApi.getValues() : [] }),
       });
       setSaveStatus(`Saved role permissions for ${commandName}.`, "success");
       await loadCommandRoles();
@@ -788,6 +889,8 @@ const Dashboard = (() => {
       if (r.page === "role-permissions") return rolePermissionsPage();
       if (r.page === "commands") return commandsPage();
       if (r.page === "analytics") return analyticsPage();
+      if (r.page === "logs") return logsPage();
+      if (r.page === "automation") return automationPage();
       if (r.page === "settings") return settingsPage();
       return goGuildPage("overview", r.id);
     } catch (e) {

@@ -1000,3 +1000,66 @@ select {
     flex-wrap: wrap;
   }
 }
+
+.rolePicker {
+  display: grid;
+  gap: 12px;
+}
+
+.rolePickerSelected {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-height: 42px;
+}
+
+.roleTag {
+  border: 1px solid rgba(109, 125, 255, 0.2);
+  background: rgba(109, 125, 255, 0.12);
+  color: #dfe5ff;
+  border-radius: 999px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.roleTag.selected:hover {
+  filter: brightness(1.05);
+}
+
+.rolePickerList {
+  max-height: 280px;
+  overflow-y: auto;
+  display: grid;
+  gap: 8px;
+}
+
+.rolePickerItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  border: 1px solid rgba(133, 153, 199, 0.12);
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--text);
+  border-radius: 14px;
+  padding: 12px 14px;
+  cursor: pointer;
+}
+
+.rolePickerItem:hover {
+  border-color: rgba(109, 125, 255, 0.22);
+  background: rgba(109, 125, 255, 0.08);
+}
+
+.rolePickerItem.active {
+  background: linear-gradient(135deg, rgba(109, 125, 255, 0.16), rgba(146, 92, 255, 0.1));
+  border-color: rgba(109, 125, 255, 0.28);
+}
+
+.realChart {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
