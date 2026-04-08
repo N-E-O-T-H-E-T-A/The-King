@@ -51,6 +51,13 @@ const Dashboard = (() => {
     $("backButton").style.display = back ? "inline-flex" : "none";
   };
 
+  const setSaveStatus = (text, type = "") => {
+  const el = $("saveStatus");
+  if (!el) return;
+  el.textContent = text;
+  el.className = `saveStatus ${type}`.trim();
+};
+
   const activeNav = (page = null) => {
     document.querySelectorAll(".navItem").forEach((n) => n.classList.remove("active"));
     if (!page && location.pathname === "/") document.querySelector('.navItem[data-route="/"]')?.classList.add("active");
@@ -323,6 +330,8 @@ const Dashboard = (() => {
   const renderHome = async () => {
     setTop("Dashboard", "Choose a server to open its workspace and analytics.", "Dashboard", false, false);
     activeNav(null);
+
+    
 
     const cards = state.guilds.length
       ? state.guilds.map((g) => `
