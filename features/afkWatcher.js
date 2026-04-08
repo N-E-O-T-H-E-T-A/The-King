@@ -25,6 +25,13 @@ module.exports = function afkWatcher(client) {
     try {
       if (!message.guild) return;
       if (message.author.bot) return;
+      
+      const prefix = client.config?.prefix || "tk";
+
+
+if (message.content.startsWith(`${prefix}afk`) || message.content.startsWith(`${prefix}away`)) {
+  return;
+}
 
       const guildId = message.guild.id;
       const authorId = message.author.id;

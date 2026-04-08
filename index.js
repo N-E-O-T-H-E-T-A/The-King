@@ -17,7 +17,7 @@ const { buildHelpMap } = require("./structures/helpers/buildHelpData");
 const { canUseCommandByConfiguredRoles } = require("./structures/helpers/commandRoleAccess");
 
 const TOKEN = process.env.DISCORD_TOKEN;
-const PREFIX = process.env.PREFIX || ",";
+const PREFIX = process.env.PREFIX || "tk";
 
 if (!TOKEN) {
   throw new Error("Missing DISCORD_TOKEN in .env");
