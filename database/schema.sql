@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS guild_settings (
   prefix TEXT
 );
 
-ALTER TABLE guild_settings ADD COLUMN prefix TEXT;
+
 
 CREATE TABLE IF NOT EXISTS mod_cases (
   case_id INTEGER PRIMARY KEY AUTOINCREMENT,
