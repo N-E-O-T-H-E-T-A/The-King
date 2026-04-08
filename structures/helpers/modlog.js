@@ -25,8 +25,13 @@ function makeColor(actionType) {
       return 0xff7875;
     case "purge":
      return 0x9b59b6;
+    case "jail":
+      return 0x8e44ad;
+    case "unjail":
+      return 0x2ecc71;
     default:
       return 0x7f8c8d;
+    
   }
 }
 

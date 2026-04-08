@@ -119,3 +119,25 @@ CREATE TABLE IF NOT EXISTS afk_mentions (
 
 CREATE INDEX IF NOT EXISTS idx_afk_mentions_lookup
 ON afk_mentions(guild_id, afk_user_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS jail_settings (
+  guild_id TEXT PRIMARY KEY,
+  jail_role_id TEXT,
+  jail_channel_id TEXT
+);
+
+CREATE TABLE IF NOT EXISTS jailed_users (
+  guild_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  jailed_by TEXT NOT NULL,
+  reason TEXT,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (guild_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS jailed_user_roles (
+  guild_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  role_id TEXT NOT NULL,
+  PRIMARY KEY (guild_id, user_id, role_id)
+);
