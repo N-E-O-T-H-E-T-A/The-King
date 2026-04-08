@@ -3,32 +3,41 @@
 }
 
 :root {
-  --bg: #0a0c12;
-  --bg-2: #0f1320;
-  --panel: rgba(19, 24, 37, 0.88);
-  --panel-2: rgba(13, 17, 27, 0.95);
-  --panel-3: rgba(25, 31, 48, 0.92);
-  --border: rgba(99, 115, 160, 0.18);
-  --border-strong: rgba(113, 133, 185, 0.28);
-  --text: #eef2ff;
-  --muted: #a5b0d0;
-  --muted-2: #7f8aae;
-  --primary: #6b78ff;
-  --primary-hover: #5966e8;
+  --bg: #090c14;
+  --bg-2: #0f1524;
+  --panel: rgba(17, 23, 38, 0.92);
+  --panel-2: rgba(14, 19, 31, 0.98);
+  --panel-3: rgba(26, 35, 57, 0.96);
+  --border: rgba(116, 139, 189, 0.14);
+  --border-strong: rgba(116, 139, 189, 0.3);
+  --text: #eef3ff;
+  --muted: #9eabc8;
+  --muted-2: #73809f;
+  --primary: #6d7dff;
+  --primary-2: #8b5cf6;
+  --primary-soft: rgba(109, 125, 255, 0.12);
   --success: #57f287;
   --error: #ed4245;
-  --shadow: 0 18px 45px rgba(0, 0, 0, 0.28);
-  --radius: 20px;
+  --warning: #f0b232;
+  --shadow: 0 22px 50px rgba(0, 0, 0, 0.32);
+  --radius: 22px;
+  --radius-sm: 16px;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  font-family: Arial, sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at top left, rgba(109, 125, 255, 0.16), transparent 28%),
+    radial-gradient(circle at top right, rgba(139, 92, 246, 0.12), transparent 24%),
+    linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
 }
 
 body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background:
-    radial-gradient(circle at top left, rgba(107, 120, 255, 0.18), transparent 32%),
-    radial-gradient(circle at top right, rgba(87, 242, 135, 0.10), transparent 25%),
-    linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
-  color: var(--text);
+  min-height: 100vh;
 }
 
 .appShell {
@@ -41,10 +50,10 @@ body {
   position: sticky;
   top: 0;
   height: 100vh;
-  padding: 26px 20px;
-  background: rgba(8, 10, 17, 0.82);
+  padding: 28px 20px;
+  background: rgba(9, 12, 20, 0.88);
   border-right: 1px solid var(--border);
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(14px);
   overflow-y: auto;
 }
 
@@ -56,21 +65,21 @@ body {
 }
 
 .brandIcon {
-  width: 54px;
-  height: 54px;
+  width: 56px;
+  height: 56px;
   border-radius: 18px;
   display: grid;
   place-items: center;
-  background: linear-gradient(135deg, var(--primary), #8b5cf6);
+  background: linear-gradient(135deg, var(--primary), var(--primary-2));
   color: white;
   font-weight: 800;
   letter-spacing: 0.04em;
-  box-shadow: 0 12px 24px rgba(107, 120, 255, 0.28);
+  box-shadow: 0 16px 28px rgba(109, 125, 255, 0.28);
 }
 
 .brandTitle {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: 1.18rem;
 }
 
 .brandSubtitle {
@@ -109,15 +118,15 @@ body {
 
 .navButton:hover,
 .sidebarGuildItem:hover {
-  background: rgba(107, 120, 255, 0.10);
-  border-color: rgba(107, 120, 255, 0.18);
+  background: var(--primary-soft);
+  border-color: rgba(109, 125, 255, 0.2);
 }
 
 .navButton.active,
 .sidebarGuildItem.active {
-  background: rgba(107, 120, 255, 0.18);
-  border-color: rgba(107, 120, 255, 0.35);
-  box-shadow: inset 0 0 0 1px rgba(107, 120, 255, 0.15);
+  background: linear-gradient(135deg, rgba(109, 125, 255, 0.17), rgba(139, 92, 246, 0.12));
+  border-color: rgba(109, 125, 255, 0.34);
+  box-shadow: inset 0 0 0 1px rgba(109, 125, 255, 0.08);
 }
 
 .guildSidebarList {
@@ -153,7 +162,7 @@ body {
 
 .topbarTitle {
   margin: 0 0 8px;
-  font-size: 1.9rem;
+  font-size: 2rem;
 }
 
 .topbarSubtitle {
@@ -182,43 +191,49 @@ body {
 .heroPanel {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(135deg, rgba(20, 26, 42, 0.92), rgba(13, 17, 27, 0.92));
+  background: linear-gradient(135deg, rgba(17, 24, 40, 0.98), rgba(12, 18, 30, 0.94));
   border: 1px solid var(--border);
-  border-radius: 24px;
-  padding: 24px;
+  border-radius: 26px;
+  padding: 26px;
   box-shadow: var(--shadow);
   margin-bottom: 22px;
 }
 
 .heroGlow {
   position: absolute;
-  top: -80px;
-  right: -80px;
-  width: 240px;
-  height: 240px;
-  background: radial-gradient(circle, rgba(107, 120, 255, 0.30), transparent 65%);
+  top: -100px;
+  right: -90px;
+  width: 260px;
+  height: 260px;
+  background: radial-gradient(circle, rgba(109, 125, 255, 0.3), transparent 65%);
   pointer-events: none;
 }
 
 .heroContent {
   position: relative;
   z-index: 1;
+  display: grid;
+  gap: 18px;
+}
+
+.heroCopy {
+  max-width: 700px;
 }
 
 .heroTitle {
   margin: 0 0 8px;
-  font-size: 1.4rem;
+  font-size: 1.5rem;
 }
 
 .heroText {
-  margin: 0 0 20px;
+  margin: 0;
   color: var(--muted);
 }
 
 .authNotice {
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 20px;
+  border-radius: var(--radius);
   padding: 22px;
   margin-bottom: 22px;
   box-shadow: var(--shadow);
@@ -240,7 +255,7 @@ body {
 }
 
 .statusCard {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.035);
   border: 1px solid var(--border);
   border-radius: 18px;
   padding: 16px;
@@ -260,7 +275,7 @@ body {
 }
 
 .statusValue {
-  font-size: 1.05rem;
+  font-size: 1.08rem;
   font-weight: 700;
 }
 
@@ -274,7 +289,7 @@ body {
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 22px;
+  padding: 24px;
   box-shadow: var(--shadow);
   backdrop-filter: blur(10px);
 }
@@ -308,18 +323,18 @@ body {
 }
 
 .guildCard {
-  background: var(--panel-2);
+  background: linear-gradient(180deg, rgba(17, 22, 34, 0.98), rgba(12, 17, 29, 0.98));
   border: 1px solid var(--border);
-  border-radius: 18px;
-  padding: 16px;
+  border-radius: 20px;
+  padding: 18px;
   cursor: pointer;
-  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
 }
 
 .guildCard:hover {
-  transform: translateY(-3px);
+  transform: translateY(-4px);
   border-color: var(--border-strong);
-  background: rgba(18, 23, 35, 0.98);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.24);
 }
 
 .guildCardTop {
@@ -331,9 +346,9 @@ body {
 
 .guildCardIcon,
 .placeholder {
-  width: 54px;
-  height: 54px;
-  border-radius: 16px;
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
   object-fit: cover;
   background: linear-gradient(135deg, #2a3140, #1f2432);
   flex-shrink: 0;
@@ -351,7 +366,7 @@ body {
 }
 
 .guildCardFooter {
-  color: var(--primary);
+  color: #b9c2ff;
   font-weight: 700;
   font-size: 0.92rem;
 }
@@ -371,9 +386,9 @@ body {
 }
 
 .guildHeaderIcon {
-  width: 62px;
-  height: 62px;
-  border-radius: 18px;
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
   object-fit: cover;
   background: linear-gradient(135deg, #2a3140, #1f2432);
 }
@@ -381,7 +396,7 @@ body {
 .tabBar {
   display: inline-flex;
   gap: 8px;
-  margin-bottom: 18px;
+  margin-bottom: 20px;
   background: rgba(255, 255, 255, 0.03);
   padding: 8px;
   border-radius: 16px;
@@ -401,14 +416,14 @@ body {
 }
 
 .tabButton:hover {
-  background: rgba(107, 120, 255, 0.10);
+  background: rgba(109, 125, 255, 0.1);
   color: var(--text);
 }
 
 .tabButton.active {
-  background: linear-gradient(135deg, var(--primary), #7c5cff);
+  background: linear-gradient(135deg, var(--primary), var(--primary-2));
   color: white;
-  box-shadow: 0 10px 20px rgba(107, 120, 255, 0.22);
+  box-shadow: 0 10px 20px rgba(109, 125, 255, 0.22);
 }
 
 .tabPanels {
@@ -437,6 +452,20 @@ body {
   }
 }
 
+.sectionIntro {
+  margin-bottom: 18px;
+}
+
+.sectionIntro h4 {
+  margin: 0 0 8px;
+  font-size: 1.12rem;
+}
+
+.sectionIntro p {
+  margin: 0;
+  color: var(--muted);
+}
+
 .panelGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -448,9 +477,9 @@ body {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  background: var(--panel-2);
+  background: linear-gradient(180deg, rgba(15, 20, 34, 1), rgba(13, 18, 29, 1));
   border: 1px solid var(--border);
-  border-radius: 18px;
+  border-radius: 20px;
   padding: 18px;
 }
 
@@ -460,25 +489,45 @@ body {
 }
 
 .settingCard select,
-.commandSearch {
-  background: rgba(255, 255, 255, 0.03);
-  color: var(--text);
-  border: 1px solid var(--border);
+.commandSearch,
+#commandCategoryFilter {
+  width: 100%;
+  background: #121827;
+  color: #edf2ff;
+  border: 1px solid rgba(114, 133, 180, 0.28);
   border-radius: 14px;
-  padding: 12px;
+  padding: 12px 14px;
   font-size: 14px;
   outline: none;
-  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.settingCard select:hover,
+.commandSearch:hover,
+#commandCategoryFilter:hover {
+  border-color: rgba(114, 133, 180, 0.44);
 }
 
 .settingCard select:focus,
-.commandSearch:focus {
-  border-color: rgba(107, 120, 255, 0.7);
-  box-shadow: 0 0 0 4px rgba(107, 120, 255, 0.12);
+.commandSearch:focus,
+#commandCategoryFilter:focus {
+  border-color: rgba(109, 125, 255, 0.75);
+  box-shadow: 0 0 0 4px rgba(109, 125, 255, 0.12);
+  background: #141b2c;
+}
+
+.settingCard select option,
+#commandCategoryFilter option {
+  background: #121827;
+  color: #edf2ff;
 }
 
 .settingCard select[multiple] {
   min-height: 230px;
+  padding-right: 10px;
 }
 
 .fieldHelp {
@@ -489,9 +538,9 @@ body {
 }
 
 .roleSelectionSummary {
-  background: var(--panel-2);
+  background: linear-gradient(180deg, rgba(15, 20, 34, 1), rgba(13, 18, 29, 1));
   border: 1px solid var(--border);
-  border-radius: 18px;
+  border-radius: 20px;
   padding: 18px;
   margin-bottom: 18px;
 }
@@ -532,9 +581,9 @@ body {
 }
 
 .roleChip {
-  background: rgba(107, 120, 255, 0.14);
-  color: #dfe4ff;
-  border: 1px solid rgba(107, 120, 255, 0.22);
+  background: rgba(109, 125, 255, 0.14);
+  color: #dfe5ff;
+  border: 1px solid rgba(109, 125, 255, 0.24);
 }
 
 .emptyChip {
@@ -557,9 +606,9 @@ body {
 
 .commandHelpCard,
 .emptyStateCard {
-  background: var(--panel-2);
+  background: linear-gradient(180deg, rgba(15, 20, 34, 1), rgba(13, 18, 29, 1));
   border: 1px solid var(--border);
-  border-radius: 18px;
+  border-radius: 20px;
   padding: 18px;
 }
 
@@ -582,9 +631,9 @@ body {
 }
 
 .commandCategoryBadge {
-  background: rgba(107, 120, 255, 0.14);
-  color: #dfe4ff;
-  border: 1px solid rgba(107, 120, 255, 0.22);
+  background: rgba(109, 125, 255, 0.14);
+  color: #dfe5ff;
+  border: 1px solid rgba(109, 125, 255, 0.22);
   white-space: nowrap;
 }
 
@@ -628,26 +677,28 @@ body {
 }
 
 button {
-  background: linear-gradient(135deg, var(--primary), #7c5cff);
+  background: linear-gradient(135deg, var(--primary), var(--primary-2));
   color: white;
   border: none;
   border-radius: 14px;
   padding: 12px 16px;
   cursor: pointer;
   font-weight: 700;
-  transition: transform 0.18s ease, filter 0.18s ease;
+  transition: transform 0.18s ease, filter 0.18s ease, box-shadow 0.18s ease;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 10px 18px rgba(109, 125, 255, 0.18);
 }
 
 button:hover {
   transform: translateY(-1px);
-  filter: brightness(1.05);
+  filter: brightness(1.04);
 }
 
 .secondaryButton {
-  background: linear-gradient(135deg, #2b3347, #39445f);
+  background: linear-gradient(135deg, #2c3650, #3c4969);
+  box-shadow: none;
 }
 
 .smallButton {
@@ -675,6 +726,24 @@ button:hover {
 .emptyStateCard {
   color: var(--muted);
   margin: 0;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(114, 133, 180, 0.28);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(114, 133, 180, 0.42);
 }
 
 @media (max-width: 980px) {

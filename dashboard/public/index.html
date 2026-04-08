@@ -36,7 +36,7 @@
       <header class="topbar">
         <div>
           <h2 class="topbarTitle">The King Control Center</h2>
-          <p class="topbarSubtitle">Manage moderation, jail, role permissions, and command help.</p>
+          <p class="topbarSubtitle">Manage moderation, jail, role permissions, and help pages.</p>
         </div>
 
         <div class="topbarActions">
@@ -57,9 +57,9 @@
       <section class="heroPanel">
         <div class="heroGlow"></div>
         <div class="heroContent">
-          <div>
+          <div class="heroCopy">
             <h3 class="heroTitle">Bot Status</h3>
-            <p class="heroText">Live status and connected server overview.</p>
+            <p class="heroText">Live dashboard access for your configured moderation system.</p>
           </div>
 
           <div id="health" class="statusGrid">
@@ -132,6 +132,11 @@
 
           <div class="tabPanels">
             <div class="tabPanel active" id="tab-moderation">
+              <div class="sectionIntro">
+                <h4>Moderation Settings</h4>
+                <p>Choose where moderation output and purge archives should be sent.</p>
+              </div>
+
               <div class="panelGrid">
                 <div class="settingCard">
                   <label for="modLogChannel">Mod Log Channel</label>
@@ -148,6 +153,11 @@
             </div>
 
             <div class="tabPanel" id="tab-jail">
+              <div class="sectionIntro">
+                <h4>Jail Settings</h4>
+                <p>Control the role and channel used by your jail system.</p>
+              </div>
+
               <div class="panelGrid">
                 <div class="settingCard">
                   <label for="jailChannel">Jail Channel</label>
@@ -164,6 +174,11 @@
             </div>
 
             <div class="tabPanel" id="tab-role-permissions">
+              <div class="sectionIntro">
+                <h4>Role Permissions</h4>
+                <p>Limit specific commands to selected roles in this server.</p>
+              </div>
+
               <div class="panelGrid">
                 <div class="settingCard">
                   <label for="commandSelect">Command</label>
@@ -175,7 +190,7 @@
                   <label for="rolePermissionsSelect">Allowed Roles</label>
                   <select id="rolePermissionsSelect" multiple size="10"></select>
                   <p class="fieldHelp">
-                    Hold Ctrl (or Cmd on Mac) to select multiple roles. Admins still bypass restrictions.
+                    Hold Ctrl (or Cmd on Mac) to select multiple roles. Administrators still bypass restrictions.
                   </p>
                 </div>
               </div>
@@ -197,6 +212,11 @@
             </div>
 
             <div class="tabPanel" id="tab-commands-help">
+              <div class="sectionIntro">
+                <h4>Commands Help</h4>
+                <p>Browse all loaded commands, their usage, aliases, and categories.</p>
+              </div>
+
               <div class="commandsHelpToolbar">
                 <input
                   id="commandSearch"
@@ -242,7 +262,6 @@
       if (hours) parts.push(`${hours}h`);
       if (minutes) parts.push(`${minutes}m`);
       parts.push(`${secs}s`);
-
       return parts.join(" ");
     }
 
@@ -250,9 +269,7 @@
       const option = document.createElement("option");
       option.value = value ?? "";
       option.textContent = label;
-      if ((selectedValue ?? "") === (value ?? "")) {
-        option.selected = true;
-      }
+      if ((selectedValue ?? "") === (value ?? "")) option.selected = true;
       return option;
     }
 
@@ -269,7 +286,6 @@
     function fillCommandSelect(commands) {
       const select = document.getElementById("commandSelect");
       const previous = select.value;
-
       select.innerHTML = "";
 
       for (const command of commands) {
@@ -332,9 +348,7 @@
       });
 
       const nextPanel = document.getElementById(`tab-${tabName}`);
-      if (nextPanel) {
-        nextPanel.classList.add("active");
-      }
+      if (nextPanel) nextPanel.classList.add("active");
     }
 
     function goToGuild(id) {
@@ -349,9 +363,7 @@
 
     function getGuildIdFromPath() {
       const parts = window.location.pathname.split("/").filter(Boolean);
-      if (parts[0] === "guild" && parts[1]) {
-        return parts[1];
-      }
+      if (parts[0] === "guild" && parts[1]) return parts[1];
       return null;
     }
 
@@ -417,9 +429,7 @@
           cmd.prefixUsage || "",
           cmd.slashUsage || "",
           cmd.options || "",
-        ]
-          .join(" ")
-          .toLowerCase();
+        ].join(" ").toLowerCase();
 
         const matchesSearch = !search || haystack.includes(search);
         return matchesCategory && matchesSearch;
@@ -517,7 +527,6 @@
       }
 
       const guilds = await res.json();
-
       renderGuildSidebar(guilds);
 
       const container = document.getElementById("guilds");
@@ -538,9 +547,7 @@
               <div class="guildCardMeta">${guild.memberCount ?? "?"} members</div>
             </div>
           </div>
-          <div class="guildCardFooter">
-            Open Dashboard →
-          </div>
+          <div class="guildCardFooter">Open Dashboard →</div>
         </div>
       `).join("");
     }
@@ -580,29 +587,10 @@
         guildIcon.style.display = "none";
       }
 
-      fillSelect(
-        "modLogChannel",
-        data.channels,
-        data.settings?.mod_log_channel_id || ""
-      );
-
-      fillSelect(
-        "purgeArchiveChannel",
-        data.channels,
-        data.settings?.purge_archive_channel_id || ""
-      );
-
-      fillSelect(
-        "jailChannel",
-        data.channels,
-        data.jail?.jail_channel_id || ""
-      );
-
-      fillSelect(
-        "jailRole",
-        data.roles,
-        data.jail?.jail_role_id || ""
-      );
+      fillSelect("modLogChannel", data.channels, data.settings?.mod_log_channel_id || "");
+      fillSelect("purgeArchiveChannel", data.channels, data.settings?.purge_archive_channel_id || "");
+      fillSelect("jailChannel", data.channels, data.jail?.jail_channel_id || "");
+      fillSelect("jailRole", data.roles, data.jail?.jail_role_id || "");
 
       fillCommandSelect(data.commands);
       fillCommandCategoryFilter(data.commands);
