@@ -92,6 +92,8 @@ function ensureAnalyticsTables() {
   `);
 }
 
+ensureAnalyticsTables();
+
 const incDailyMessagesStmt = db.prepare(`
   INSERT INTO analytics_daily_messages (guild_id, day_key, message_count)
   VALUES (?, ?, 1)
