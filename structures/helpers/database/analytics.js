@@ -1,7 +1,7 @@
 const path = require("node:path");
 const Database = require("better-sqlite3");
 
-const dbPath = path.join(__dirname, "../../../../database/king.db");
+const dbPath = path.join(__dirname, "../../../database/king.db");
 const db = new Database(dbPath);
 
 db.pragma("journal_mode = WAL");
