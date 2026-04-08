@@ -10,6 +10,8 @@ const {
   Events,
 } = require("discord.js");
 
+const { startDashboard } = require("./dashboard/server");
+
 const CommandContext = require("./structures/CommandContext");
 const initDatabase = require("./database/init");
 const { restoreTempBans } = require("./structures/helpers/tempBanScheduler");
@@ -226,6 +228,8 @@ client.once(Events.ClientReady, async (readyClient) => {
   } catch (error) {
     console.error("[TEMPBAN RESTORE ERROR]", error);
   }
+
+  startDashboard(client);
 });
 
 client.on("error", (err) => {

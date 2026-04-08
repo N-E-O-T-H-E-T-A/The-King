@@ -1,0 +1,727 @@
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  --bg: #0a0c12;
+  --bg-2: #0f1320;
+  --panel: rgba(19, 24, 37, 0.88);
+  --panel-2: rgba(13, 17, 27, 0.95);
+  --panel-3: rgba(25, 31, 48, 0.92);
+  --border: rgba(99, 115, 160, 0.18);
+  --border-strong: rgba(113, 133, 185, 0.28);
+  --text: #eef2ff;
+  --muted: #a5b0d0;
+  --muted-2: #7f8aae;
+  --primary: #6b78ff;
+  --primary-hover: #5966e8;
+  --success: #57f287;
+  --error: #ed4245;
+  --shadow: 0 18px 45px rgba(0, 0, 0, 0.28);
+  --radius: 20px;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background:
+    radial-gradient(circle at top left, rgba(107, 120, 255, 0.18), transparent 32%),
+    radial-gradient(circle at top right, rgba(87, 242, 135, 0.10), transparent 25%),
+    linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
+  color: var(--text);
+}
+
+.appShell {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  min-height: 100vh;
+}
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  padding: 26px 20px;
+  background: rgba(8, 10, 17, 0.82);
+  border-right: 1px solid var(--border);
+  backdrop-filter: blur(12px);
+  overflow-y: auto;
+}
+
+.brandBlock {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 28px;
+}
+
+.brandIcon {
+  width: 54px;
+  height: 54px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, var(--primary), #8b5cf6);
+  color: white;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  box-shadow: 0 12px 24px rgba(107, 120, 255, 0.28);
+}
+
+.brandTitle {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.brandSubtitle {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.sidebarSection {
+  margin-bottom: 24px;
+}
+
+.sidebarLabel {
+  color: var(--muted-2);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 10px;
+}
+
+.navButton,
+.sidebarGuildItem {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--text);
+  padding: 12px 14px;
+  cursor: pointer;
+  text-align: left;
+  transition: 0.18s ease;
+}
+
+.navButton:hover,
+.sidebarGuildItem:hover {
+  background: rgba(107, 120, 255, 0.10);
+  border-color: rgba(107, 120, 255, 0.18);
+}
+
+.navButton.active,
+.sidebarGuildItem.active {
+  background: rgba(107, 120, 255, 0.18);
+  border-color: rgba(107, 120, 255, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(107, 120, 255, 0.15);
+}
+
+.guildSidebarList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sidebarGuildIcon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: #2a3140;
+  flex-shrink: 0;
+}
+
+.placeholderMini {
+  background: linear-gradient(135deg, #30384b, #1f2432);
+}
+
+.mainContent {
+  padding: 28px;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.topbarTitle {
+  margin: 0 0 8px;
+  font-size: 1.9rem;
+}
+
+.topbarSubtitle {
+  margin: 0;
+  color: var(--muted);
+}
+
+.topbarActions,
+.authArea {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.userBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 8px 10px 8px 14px;
+}
+
+.heroPanel {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(20, 26, 42, 0.92), rgba(13, 17, 27, 0.92));
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: var(--shadow);
+  margin-bottom: 22px;
+}
+
+.heroGlow {
+  position: absolute;
+  top: -80px;
+  right: -80px;
+  width: 240px;
+  height: 240px;
+  background: radial-gradient(circle, rgba(107, 120, 255, 0.30), transparent 65%);
+  pointer-events: none;
+}
+
+.heroContent {
+  position: relative;
+  z-index: 1;
+}
+
+.heroTitle {
+  margin: 0 0 8px;
+  font-size: 1.4rem;
+}
+
+.heroText {
+  margin: 0 0 20px;
+  color: var(--muted);
+}
+
+.authNotice {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 22px;
+  margin-bottom: 22px;
+  box-shadow: var(--shadow);
+}
+
+.authNotice h3 {
+  margin: 0 0 8px;
+}
+
+.authNotice p {
+  margin: 0 0 14px;
+  color: var(--muted);
+}
+
+.statusGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 14px;
+}
+
+.statusCard {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 16px;
+  min-height: 96px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.statusLabel {
+  display: block;
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.statusValue {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.contentGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 22px;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
+}
+
+.panelWide {
+  width: 100%;
+}
+
+.panelHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.panelTitle {
+  margin: 0 0 8px;
+  font-size: 1.35rem;
+}
+
+.panelSubtitle {
+  margin: 0;
+  color: var(--muted);
+}
+
+.guildGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.guildCard {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 16px;
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.guildCard:hover {
+  transform: translateY(-3px);
+  border-color: var(--border-strong);
+  background: rgba(18, 23, 35, 0.98);
+}
+
+.guildCardTop {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.guildCardIcon,
+.placeholder {
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
+  object-fit: cover;
+  background: linear-gradient(135deg, #2a3140, #1f2432);
+  flex-shrink: 0;
+}
+
+.guildCardTitle {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 1rem;
+}
+
+.guildCardMeta {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.guildCardFooter {
+  color: var(--primary);
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.guildPanelHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.guildIdentity {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.guildHeaderIcon {
+  width: 62px;
+  height: 62px;
+  border-radius: 18px;
+  object-fit: cover;
+  background: linear-gradient(135deg, #2a3140, #1f2432);
+}
+
+.tabBar {
+  display: inline-flex;
+  gap: 8px;
+  margin-bottom: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 8px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.tabButton {
+  background: transparent;
+  color: var(--muted);
+  border: none;
+  border-radius: 12px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-weight: 700;
+  transition: 0.18s ease;
+}
+
+.tabButton:hover {
+  background: rgba(107, 120, 255, 0.10);
+  color: var(--text);
+}
+
+.tabButton.active {
+  background: linear-gradient(135deg, var(--primary), #7c5cff);
+  color: white;
+  box-shadow: 0 10px 20px rgba(107, 120, 255, 0.22);
+}
+
+.tabPanels {
+  position: relative;
+}
+
+.tabPanel {
+  display: none;
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.tabPanel.active {
+  display: block;
+  animation: tabFade 220ms ease forwards;
+}
+
+@keyframes tabFade {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.panelGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.settingCard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 18px;
+}
+
+.settingCard label {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.settingCard select,
+.commandSearch {
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.settingCard select:focus,
+.commandSearch:focus {
+  border-color: rgba(107, 120, 255, 0.7);
+  box-shadow: 0 0 0 4px rgba(107, 120, 255, 0.12);
+}
+
+.settingCard select[multiple] {
+  min-height: 230px;
+}
+
+.fieldHelp {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.roleSelectionSummary {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 18px;
+  margin-bottom: 18px;
+}
+
+.summaryHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.summaryHeader h4 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.summaryCount {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.chipWrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.roleChip,
+.emptyChip,
+.commandCategoryBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 0.9rem;
+}
+
+.roleChip {
+  background: rgba(107, 120, 255, 0.14);
+  color: #dfe4ff;
+  border: 1px solid rgba(107, 120, 255, 0.22);
+}
+
+.emptyChip {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+  border: 1px dashed var(--border);
+}
+
+.commandsHelpToolbar {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.commandsHelpList {
+  display: grid;
+  gap: 14px;
+}
+
+.commandHelpCard,
+.emptyStateCard {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 18px;
+}
+
+.commandHelpTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.commandHelpTop h4 {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+}
+
+.commandHelpTop p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.commandCategoryBadge {
+  background: rgba(107, 120, 255, 0.14);
+  color: #dfe4ff;
+  border: 1px solid rgba(107, 120, 255, 0.22);
+  white-space: nowrap;
+}
+
+.commandMetaGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.commandMetaItem {
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.metaLabel {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted-2);
+}
+
+.commandMetaItem code {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-family: Consolas, monospace;
+  color: #e7ebff;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.buttonRow {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+button {
+  background: linear-gradient(135deg, var(--primary), #7c5cff);
+  color: white;
+  border: none;
+  border-radius: 14px;
+  padding: 12px 16px;
+  cursor: pointer;
+  font-weight: 700;
+  transition: transform 0.18s ease, filter 0.18s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+button:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+}
+
+.secondaryButton {
+  background: linear-gradient(135deg, #2b3347, #39445f);
+}
+
+.smallButton {
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 0.9rem;
+}
+
+.saveStatus {
+  min-height: 20px;
+  margin-bottom: 16px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.saveStatus.success {
+  color: var(--success);
+}
+
+.saveStatus.error {
+  color: var(--error);
+}
+
+.emptyState,
+.emptyStateCard {
+  color: var(--muted);
+  margin: 0;
+}
+
+@media (max-width: 980px) {
+  .appShell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: static;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+@media (max-width: 760px) {
+  .mainContent {
+    padding: 16px;
+  }
+
+  .topbar,
+  .guildPanelHeader,
+  .commandHelpTop,
+  .summaryHeader {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .guildIdentity {
+    align-items: flex-start;
+  }
+
+  .buttonRow button,
+  .topbarActions button {
+    width: 100%;
+  }
+
+  .commandsHelpToolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .authArea {
+    width: 100%;
+  }
+
+  .userBadge {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
