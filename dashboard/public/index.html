@@ -7,745 +7,116 @@
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
-  <div class="appShell">
+  <div id="app" class="appShell">
     <aside class="sidebar">
-      <div class="brandBlock">
-        <div class="brandIcon">TK</div>
-        <div>
-          <h1 class="brandTitle">The King</h1>
-          <p class="brandSubtitle">Dashboard</p>
+      <div class="sidebarTop">
+        <div class="brandBlock">
+          <div class="brandIcon">TK</div>
+          <div class="brandCopy">
+            <h1 class="brandTitle">The King</h1>
+            <p class="brandSubtitle">Control Center</p>
+          </div>
         </div>
+
+        <div class="guildSwitcherWrap">
+          <label class="sidebarLabel">Server</label>
+          <div id="guildSwitcherMount"></div>
+        </div>
+
+        <nav class="sidebarNav">
+          <div class="sidebarGroup">
+            <div class="sidebarLabel">Main</div>
+            <button class="navItem" data-route="/" onclick="Dashboard.goHome()">
+              <span class="navDot"></span>
+              <span>Dashboard</span>
+            </button>
+          </div>
+
+          <div id="guildNavGroup" class="sidebarGroup" style="display:none;">
+            <div class="sidebarLabel">Workspace</div>
+
+            <button class="navItem" data-page="overview" onclick="Dashboard.goGuildPage('overview')">
+              <span class="navDot"></span>
+              <span>Overview</span>
+            </button>
+
+            <button class="navItem" data-page="moderation" onclick="Dashboard.goGuildPage('moderation')">
+              <span class="navDot"></span>
+              <span>Moderation</span>
+            </button>
+
+            <button class="navItem" data-page="jail" onclick="Dashboard.goGuildPage('jail')">
+              <span class="navDot"></span>
+              <span>Jail</span>
+            </button>
+
+            <button class="navItem" data-page="role-permissions" onclick="Dashboard.goGuildPage('role-permissions')">
+              <span class="navDot"></span>
+              <span>Role Permissions</span>
+            </button>
+
+            <button class="navItem" data-page="commands" onclick="Dashboard.goGuildPage('commands')">
+              <span class="navDot"></span>
+              <span>Commands</span>
+            </button>
+
+            <button class="navItem" data-page="analytics" onclick="Dashboard.goGuildPage('analytics')">
+              <span class="navDot"></span>
+              <span>Analytics</span>
+            </button>
+
+            <button class="navItem" data-page="settings" onclick="Dashboard.goGuildPage('settings')">
+              <span class="navDot"></span>
+              <span>Settings</span>
+            </button>
+          </div>
+        </nav>
       </div>
 
-      <div class="sidebarSection">
-        <div class="sidebarLabel">Navigation</div>
-        <button class="navButton" id="homeNavButton" onclick="goHome()">
-          Servers
+      <div class="sidebarBottom">
+        <div id="userBadge" class="userCard" style="display:none;">
+          <div class="userAvatar" id="userAvatarInitial">U</div>
+          <div class="userMeta">
+            <div id="userName" class="userName">User</div>
+            <div class="userSub">Authenticated</div>
+          </div>
+          <button class="ghostButton smallButton" onclick="Dashboard.logout()">Logout</button>
+        </div>
+
+        <button id="loginButton" class="primaryButton fullWidth" onclick="Dashboard.loginWithDiscord()">
+          Login with Discord
         </button>
-      </div>
-
-      <div class="sidebarSection">
-        <div class="sidebarLabel">Connected Servers</div>
-        <div id="guildSidebarList" class="guildSidebarList">
-          Loading...
-        </div>
       </div>
     </aside>
 
-    <main class="mainContent">
+    <main class="mainShell">
       <header class="topbar">
         <div>
-          <h2 class="topbarTitle">The King Control Center</h2>
-          <p class="topbarSubtitle">Manage moderation, jail, role permissions, and help pages.</p>
+          <div id="breadcrumb" class="breadcrumb">Dashboard</div>
+          <h2 id="pageTitle" class="pageTitle">Welcome</h2>
+          <p id="pageSubtitle" class="pageSubtitle">Manage your bot, moderation, and server systems.</p>
         </div>
 
         <div class="topbarActions">
-          <div id="authArea" class="authArea">
-            <button id="loginButton" onclick="loginWithDiscord()">Login with Discord</button>
-            <div id="userBadge" class="userBadge" style="display:none;">
-              <span id="userBadgeText"></span>
-              <button class="secondaryButton smallButton" onclick="logout()">Logout</button>
-            </div>
-          </div>
-
-          <button class="secondaryButton" id="backButton" style="display:none;" onclick="goHome()">
+          <button id="backButton" class="ghostButton" style="display:none;" onclick="Dashboard.goHome()">
             ← Back
+          </button>
+          <button id="saveButton" class="primaryButton" style="display:none;" onclick="Dashboard.saveCurrentPage()">
+            Save Changes
           </button>
         </div>
       </header>
 
-      <section class="heroPanel">
-        <div class="heroGlow"></div>
-        <div class="heroContent">
-          <div class="heroCopy">
-            <h3 class="heroTitle">Bot Status</h3>
-            <p class="heroText">Live dashboard access for your configured moderation system.</p>
-          </div>
-
-          <div id="health" class="statusGrid">
-            <div class="statusCard">
-              <span class="statusLabel">Bot</span>
-              <span id="statusBot" class="statusValue">Loading...</span>
-            </div>
-            <div class="statusCard">
-              <span class="statusLabel">Guilds</span>
-              <span id="statusGuilds" class="statusValue">Loading...</span>
-            </div>
-            <div class="statusCard">
-              <span class="statusLabel">Uptime</span>
-              <span id="statusUptime" class="statusValue">Loading...</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <div id="authNotice" class="authNotice" style="display:none;">
         <h3>Login required</h3>
-        <p>Use Discord login to view only the servers where you have admin access.</p>
-        <button onclick="loginWithDiscord()">Continue with Discord</button>
+        <p>Use Discord login to access only the servers where you have administrator permission.</p>
+        <button class="primaryButton" onclick="Dashboard.loginWithDiscord()">Continue with Discord</button>
       </div>
 
-      <section class="contentGrid" id="dashboardContent" style="display:none;">
-        <section class="panel panelWide" id="guildListSection">
-          <div class="panelHeader">
-            <div>
-              <h3 class="panelTitle">Servers</h3>
-              <p class="panelSubtitle">Only servers where you have admin access are shown here.</p>
-            </div>
-          </div>
-
-          <div id="guilds" class="guildGrid">Loading...</div>
-        </section>
-
-        <section class="panel panelWide" id="guildPanel" style="display:none;">
-          <div class="guildPanelHeader">
-            <div class="guildIdentity">
-              <img id="guildIcon" class="guildHeaderIcon" src="" alt="" style="display:none;" />
-              <div>
-                <h3 id="guildTitle" class="panelTitle">Guild</h3>
-                <p class="panelSubtitle">Edit settings, switch tabs, and save changes.</p>
-              </div>
-            </div>
-
-            <div class="buttonRow">
-              <button class="secondaryButton" onclick="loadGuildPage()">Refresh</button>
-              <button onclick="saveSettings()">Save Settings</button>
-            </div>
-          </div>
-
-          <div id="saveStatus" class="saveStatus"></div>
-
-          <div class="tabBar">
-            <button class="tabButton active" data-tab="moderation" onclick="switchTab('moderation')">
-              Moderation
-            </button>
-            <button class="tabButton" data-tab="jail" onclick="switchTab('jail')">
-              Jail
-            </button>
-            <button class="tabButton" data-tab="role-permissions" onclick="switchTab('role-permissions')">
-              Role Permissions
-            </button>
-            <button class="tabButton" data-tab="commands-help" onclick="switchTab('commands-help')">
-              Commands Help
-            </button>
-          </div>
-
-          <div class="tabPanels">
-            <div class="tabPanel active" id="tab-moderation">
-              <div class="sectionIntro">
-                <h4>Moderation Settings</h4>
-                <p>Choose where moderation output and purge archives should be sent.</p>
-              </div>
-
-              <div class="panelGrid">
-                <div class="settingCard">
-                  <label for="modLogChannel">Mod Log Channel</label>
-                  <select id="modLogChannel"></select>
-                  <p class="fieldHelp">Where moderation logs and case embeds will be sent.</p>
-                </div>
-
-                <div class="settingCard">
-                  <label for="purgeArchiveChannel">Purge Archive Channel</label>
-                  <select id="purgeArchiveChannel"></select>
-                  <p class="fieldHelp">Where purged messages get archived before deletion.</p>
-                </div>
-              </div>
-            </div>
-
-            <div class="tabPanel" id="tab-jail">
-              <div class="sectionIntro">
-                <h4>Jail Settings</h4>
-                <p>Control the role and channel used by your jail system.</p>
-              </div>
-
-              <div class="panelGrid">
-                <div class="settingCard">
-                  <label for="jailChannel">Jail Channel</label>
-                  <select id="jailChannel"></select>
-                  <p class="fieldHelp">Channel jailed users can still access.</p>
-                </div>
-
-                <div class="settingCard">
-                  <label for="jailRole">Jail Role</label>
-                  <select id="jailRole"></select>
-                  <p class="fieldHelp">Role applied to jailed users after other roles are stripped.</p>
-                </div>
-              </div>
-            </div>
-
-            <div class="tabPanel" id="tab-role-permissions">
-              <div class="sectionIntro">
-                <h4>Role Permissions</h4>
-                <p>Limit specific commands to selected roles in this server.</p>
-              </div>
-
-              <div class="panelGrid">
-                <div class="settingCard">
-                  <label for="commandSelect">Command</label>
-                  <select id="commandSelect" onchange="loadCommandRoles()"></select>
-                  <p class="fieldHelp">Pick a command to control who can use it.</p>
-                </div>
-
-                <div class="settingCard">
-                  <label for="rolePermissionsSelect">Allowed Roles</label>
-                  <select id="rolePermissionsSelect" multiple size="10"></select>
-                  <p class="fieldHelp">
-                    Hold Ctrl (or Cmd on Mac) to select multiple roles. Administrators still bypass restrictions.
-                  </p>
-                </div>
-              </div>
-
-              <div class="roleSelectionSummary">
-                <div class="summaryHeader">
-                  <h4>Currently Allowed Roles</h4>
-                  <span id="selectedRoleCount" class="summaryCount">0 selected</span>
-                </div>
-                <div id="selectedRoleChips" class="chipWrap">
-                  <span class="emptyChip">None configured.</span>
-                </div>
-              </div>
-
-              <div class="buttonRow">
-                <button onclick="saveCommandRoles()">Save Role Permissions</button>
-                <button class="secondaryButton" onclick="clearCommandRoles()">Clear Role Permissions</button>
-              </div>
-            </div>
-
-            <div class="tabPanel" id="tab-commands-help">
-              <div class="sectionIntro">
-                <h4>Commands Help</h4>
-                <p>Browse all loaded commands, their usage, aliases, and categories.</p>
-              </div>
-
-              <div class="commandsHelpToolbar">
-                <input
-                  id="commandSearch"
-                  class="commandSearch"
-                  type="text"
-                  placeholder="Search commands..."
-                  oninput="renderCommandsHelp()"
-                />
-                <select id="commandCategoryFilter" onchange="renderCommandsHelp()">
-                  <option value="all">All Categories</option>
-                </select>
-              </div>
-
-              <div id="commandsHelpList" class="commandsHelpList">
-                Loading...
-              </div>
-            </div>
-          </div>
-        </section>
-      </section>
+      <section id="viewRoot" class="viewRoot"></section>
     </main>
   </div>
 
-  <script>
-    let selectedGuild = null;
-    let selectedGuildData = null;
-
-    function setSaveStatus(text, type = "") {
-      const el = document.getElementById("saveStatus");
-      el.textContent = text;
-      el.className = `saveStatus ${type}`.trim();
-    }
-
-    function formatUptime(seconds) {
-      const total = Math.floor(seconds || 0);
-      const days = Math.floor(total / 86400);
-      const hours = Math.floor((total % 86400) / 3600);
-      const minutes = Math.floor((total % 3600) / 60);
-      const secs = total % 60;
-
-      const parts = [];
-      if (days) parts.push(`${days}d`);
-      if (hours) parts.push(`${hours}h`);
-      if (minutes) parts.push(`${minutes}m`);
-      parts.push(`${secs}s`);
-      return parts.join(" ");
-    }
-
-    function makeOption(value, label, selectedValue = null) {
-      const option = document.createElement("option");
-      option.value = value ?? "";
-      option.textContent = label;
-      if ((selectedValue ?? "") === (value ?? "")) option.selected = true;
-      return option;
-    }
-
-    function fillSelect(selectId, items, selectedValue, labelKey = "name") {
-      const select = document.getElementById(selectId);
-      select.innerHTML = "";
-      select.appendChild(makeOption("", "None", selectedValue));
-
-      for (const item of items) {
-        select.appendChild(makeOption(item.id, item[labelKey], selectedValue));
-      }
-    }
-
-    function fillCommandSelect(commands) {
-      const select = document.getElementById("commandSelect");
-      const previous = select.value;
-      select.innerHTML = "";
-
-      for (const command of commands) {
-        const label = `${command.name} (${command.category})`;
-        select.appendChild(makeOption(command.name, label, previous));
-      }
-
-      if (!select.value && commands.length) {
-        select.value = commands[0].name;
-      }
-    }
-
-    function fillCommandCategoryFilter(commands) {
-      const select = document.getElementById("commandCategoryFilter");
-      const previous = select.value || "all";
-      const categories = [...new Set(commands.map((cmd) => cmd.category).filter(Boolean))].sort();
-
-      select.innerHTML = `<option value="all">All Categories</option>`;
-
-      for (const category of categories) {
-        select.appendChild(makeOption(category, category, previous));
-      }
-
-      if (![...select.options].some((opt) => opt.value === previous)) {
-        select.value = "all";
-      }
-    }
-
-    function fillRoleMultiSelect(roles, selectedIds = []) {
-      const select = document.getElementById("rolePermissionsSelect");
-      select.innerHTML = "";
-
-      for (const role of roles) {
-        const option = makeOption(role.id, role.name);
-        option.selected = selectedIds.includes(role.id);
-        select.appendChild(option);
-      }
-    }
-
-    function getSelectedMultiValues(selectId) {
-      return [...document.getElementById(selectId).selectedOptions].map((opt) => opt.value);
-    }
-
-    function escapeHtml(text) {
-      return String(text)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
-    }
-
-    function switchTab(tabName) {
-      document.querySelectorAll(".tabButton").forEach((btn) => {
-        btn.classList.toggle("active", btn.dataset.tab === tabName);
-      });
-
-      document.querySelectorAll(".tabPanel").forEach((panel) => {
-        panel.classList.remove("active");
-      });
-
-      const nextPanel = document.getElementById(`tab-${tabName}`);
-      if (nextPanel) nextPanel.classList.add("active");
-    }
-
-    function goToGuild(id) {
-      window.history.pushState({}, "", `/guild/${id}`);
-      loadRoute();
-    }
-
-    function goHome() {
-      window.history.pushState({}, "", `/`);
-      loadRoute();
-    }
-
-    function getGuildIdFromPath() {
-      const parts = window.location.pathname.split("/").filter(Boolean);
-      if (parts[0] === "guild" && parts[1]) return parts[1];
-      return null;
-    }
-
-    function updateNavState() {
-      const homeButton = document.getElementById("homeNavButton");
-      homeButton.classList.toggle("active", !selectedGuild);
-
-      document.querySelectorAll(".sidebarGuildItem").forEach((item) => {
-        item.classList.toggle("active", item.dataset.guildId === selectedGuild);
-      });
-    }
-
-    function renderGuildSidebar(guilds) {
-      const container = document.getElementById("guildSidebarList");
-
-      if (!guilds.length) {
-        container.innerHTML = "<p class='emptyState'>No guilds found.</p>";
-        return;
-      }
-
-      container.innerHTML = guilds.map((guild) => `
-        <button class="sidebarGuildItem" data-guild-id="${guild.id}" onclick="goToGuild('${guild.id}')">
-          ${guild.icon
-            ? `<img class="sidebarGuildIcon" src="${guild.icon}" alt="${escapeHtml(guild.name)}" />`
-            : `<div class="sidebarGuildIcon placeholderMini"></div>`}
-          <span>${escapeHtml(guild.name)}</span>
-        </button>
-      `).join("");
-
-      updateNavState();
-    }
-
-    function renderSelectedRoleChips(roleObjects = []) {
-      const container = document.getElementById("selectedRoleChips");
-      const count = document.getElementById("selectedRoleCount");
-
-      count.textContent = `${roleObjects.length} selected`;
-
-      if (!roleObjects.length) {
-        container.innerHTML = `<span class="emptyChip">None configured.</span>`;
-        return;
-      }
-
-      container.innerHTML = roleObjects
-        .map((role) => `<span class="roleChip">${escapeHtml(role.name)}</span>`)
-        .join("");
-    }
-
-    function renderCommandsHelp() {
-      if (!selectedGuildData?.commands) return;
-
-      const list = document.getElementById("commandsHelpList");
-      const search = document.getElementById("commandSearch").value.trim().toLowerCase();
-      const category = document.getElementById("commandCategoryFilter").value;
-
-      const commands = selectedGuildData.commands.filter((cmd) => {
-        const matchesCategory = category === "all" || cmd.category === category;
-        const haystack = [
-          cmd.name,
-          cmd.description,
-          ...(cmd.aliases || []),
-          cmd.category,
-          cmd.prefixUsage || "",
-          cmd.slashUsage || "",
-          cmd.options || "",
-        ].join(" ").toLowerCase();
-
-        const matchesSearch = !search || haystack.includes(search);
-        return matchesCategory && matchesSearch;
-      });
-
-      if (!commands.length) {
-        list.innerHTML = `<div class="emptyStateCard">No commands matched that filter.</div>`;
-        return;
-      }
-
-      list.innerHTML = commands.map((cmd) => `
-        <div class="commandHelpCard">
-          <div class="commandHelpTop">
-            <div>
-              <h4>${escapeHtml(cmd.name)}</h4>
-              <p>${escapeHtml(cmd.description)}</p>
-            </div>
-            <span class="commandCategoryBadge">${escapeHtml(cmd.category)}</span>
-          </div>
-
-          <div class="commandMetaGrid">
-            <div class="commandMetaItem">
-              <span class="metaLabel">Prefix</span>
-              <code>${escapeHtml(cmd.prefixUsage || "Not available")}</code>
-            </div>
-            <div class="commandMetaItem">
-              <span class="metaLabel">Slash</span>
-              <code>${escapeHtml(cmd.slashUsage || "Not available")}</code>
-            </div>
-            <div class="commandMetaItem">
-              <span class="metaLabel">Aliases</span>
-              <span>${cmd.aliases && cmd.aliases.length ? escapeHtml(cmd.aliases.join(", ")) : "None"}</span>
-            </div>
-            <div class="commandMetaItem">
-              <span class="metaLabel">Options</span>
-              <span>${escapeHtml(cmd.options || "No options")}</span>
-            </div>
-          </div>
-        </div>
-      `).join("");
-    }
-
-    function loginWithDiscord() {
-      window.location.href = "/auth/login";
-    }
-
-    async function logout() {
-      await fetch("/auth/logout", { method: "POST" });
-      window.location.href = "/";
-    }
-
-    async function loadMe() {
-      const res = await fetch("/api/me");
-      const data = await res.json();
-
-      const authNotice = document.getElementById("authNotice");
-      const dashboardContent = document.getElementById("dashboardContent");
-      const loginButton = document.getElementById("loginButton");
-      const userBadge = document.getElementById("userBadge");
-      const userBadgeText = document.getElementById("userBadgeText");
-
-      if (!data.authenticated) {
-        authNotice.style.display = "block";
-        dashboardContent.style.display = "none";
-        loginButton.style.display = "inline-flex";
-        userBadge.style.display = "none";
-        return false;
-      }
-
-      authNotice.style.display = "none";
-      dashboardContent.style.display = "grid";
-      loginButton.style.display = "none";
-      userBadge.style.display = "inline-flex";
-      userBadgeText.textContent = data.user?.global_name || data.user?.username || "Logged in";
-
-      return true;
-    }
-
-    async function loadHealth() {
-      const res = await fetch("/api/health");
-      const data = await res.json();
-
-      document.getElementById("statusBot").textContent = data.bot?.tag || "Offline";
-      document.getElementById("statusGuilds").textContent = data.guilds ?? "Unknown";
-      document.getElementById("statusUptime").textContent = formatUptime(data.uptime);
-    }
-
-    async function loadGuilds() {
-      const res = await fetch("/api/guilds");
-
-      if (res.status === 401) {
-        renderGuildSidebar([]);
-        document.getElementById("guilds").innerHTML = "<p class='emptyState'>Log in to see your servers.</p>";
-        return;
-      }
-
-      const guilds = await res.json();
-      renderGuildSidebar(guilds);
-
-      const container = document.getElementById("guilds");
-
-      if (!guilds.length) {
-        container.innerHTML = "<p class='emptyState'>No admin-accessible servers found.</p>";
-        return;
-      }
-
-      container.innerHTML = guilds.map(guild => `
-        <div class="guildCard" onclick="goToGuild('${guild.id}')">
-          <div class="guildCardTop">
-            ${guild.icon
-              ? `<img class="guildCardIcon" src="${guild.icon}" alt="${escapeHtml(guild.name)}" />`
-              : `<div class="guildCardIcon placeholder"></div>`}
-            <div>
-              <strong class="guildCardTitle">${escapeHtml(guild.name)}</strong>
-              <div class="guildCardMeta">${guild.memberCount ?? "?"} members</div>
-            </div>
-          </div>
-          <div class="guildCardFooter">Open Dashboard →</div>
-        </div>
-      `).join("");
-    }
-
-    async function loadGuildPage() {
-      if (!selectedGuild) return;
-
-      setSaveStatus("Loading settings...");
-
-      const res = await fetch(`/api/guild/${selectedGuild}/settings`);
-      const data = await res.json();
-
-      if (res.status === 401) {
-        setSaveStatus("Login required.", "error");
-        return;
-      }
-
-      if (res.status === 403) {
-        setSaveStatus("You do not have admin access to that server.", "error");
-        return;
-      }
-
-      if (!res.ok || data.error) {
-        setSaveStatus(data.error || "Failed to load guild data.", "error");
-        return;
-      }
-
-      selectedGuildData = data;
-
-      document.getElementById("guildTitle").textContent = data.guild.name;
-
-      const guildIcon = document.getElementById("guildIcon");
-      if (data.guild.icon) {
-        guildIcon.src = data.guild.icon;
-        guildIcon.style.display = "block";
-      } else {
-        guildIcon.style.display = "none";
-      }
-
-      fillSelect("modLogChannel", data.channels, data.settings?.mod_log_channel_id || "");
-      fillSelect("purgeArchiveChannel", data.channels, data.settings?.purge_archive_channel_id || "");
-      fillSelect("jailChannel", data.channels, data.jail?.jail_channel_id || "");
-      fillSelect("jailRole", data.roles, data.jail?.jail_role_id || "");
-
-      fillCommandSelect(data.commands);
-      fillCommandCategoryFilter(data.commands);
-      renderCommandsHelp();
-      await loadCommandRoles();
-
-      setSaveStatus("Settings loaded.", "success");
-    }
-
-    async function loadCommandRoles() {
-      if (!selectedGuild || !selectedGuildData) return;
-
-      const commandName = document.getElementById("commandSelect").value;
-      if (!commandName) return;
-
-      const res = await fetch(`/api/guild/${selectedGuild}/command-roles/${encodeURIComponent(commandName)}`);
-      const data = await res.json();
-
-      if (!res.ok || data.error) {
-        setSaveStatus(data.error || "Failed to load role permissions.", "error");
-        return;
-      }
-
-      fillRoleMultiSelect(selectedGuildData.roles, data.roleIds || []);
-      renderSelectedRoleChips(data.roles || []);
-    }
-
-    async function saveSettings() {
-      if (!selectedGuild) return;
-
-      setSaveStatus("Saving settings...");
-
-      const payload = {
-        modLogChannelId: document.getElementById("modLogChannel").value || null,
-        purgeArchiveChannelId: document.getElementById("purgeArchiveChannel").value || null,
-        jailChannelId: document.getElementById("jailChannel").value || null,
-        jailRoleId: document.getElementById("jailRole").value || null,
-      };
-
-      const res = await fetch(`/api/guild/${selectedGuild}/settings`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || !data.ok) {
-        setSaveStatus(data.error || "Failed to save settings.", "error");
-        return;
-      }
-
-      setSaveStatus("Saved guild settings successfully.", "success");
-      await loadGuildPage();
-    }
-
-    async function saveCommandRoles() {
-      if (!selectedGuild) return;
-
-      const commandName = document.getElementById("commandSelect").value;
-      const roleIds = getSelectedMultiValues("rolePermissionsSelect");
-
-      if (!commandName) {
-        setSaveStatus("Choose a command first.", "error");
-        return;
-      }
-
-      setSaveStatus("Saving role permissions...");
-
-      const res = await fetch(`/api/guild/${selectedGuild}/command-roles/${encodeURIComponent(commandName)}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ roleIds }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || !data.ok) {
-        setSaveStatus(data.error || "Failed to save role permissions.", "error");
-        return;
-      }
-
-      setSaveStatus(`Saved role permissions for ${commandName}.`, "success");
-      await loadCommandRoles();
-    }
-
-    async function clearCommandRoles() {
-      if (!selectedGuild) return;
-
-      const commandName = document.getElementById("commandSelect").value;
-      if (!commandName) {
-        setSaveStatus("Choose a command first.", "error");
-        return;
-      }
-
-      setSaveStatus("Clearing role permissions...");
-
-      const res = await fetch(`/api/guild/${selectedGuild}/command-roles/${encodeURIComponent(commandName)}`, {
-        method: "DELETE",
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || !data.ok) {
-        setSaveStatus(data.error || "Failed to clear role permissions.", "error");
-        return;
-      }
-
-      setSaveStatus(`Cleared role permissions for ${commandName}.`, "success");
-      await loadCommandRoles();
-    }
-
-    async function loadRoute() {
-      const guildId = getGuildIdFromPath();
-
-      const guildListSection = document.getElementById("guildListSection");
-      const guildPanel = document.getElementById("guildPanel");
-      const backButton = document.getElementById("backButton");
-
-      if (!guildId) {
-        selectedGuild = null;
-        guildListSection.style.display = "block";
-        guildPanel.style.display = "none";
-        backButton.style.display = "none";
-        updateNavState();
-        return;
-      }
-
-      selectedGuild = guildId;
-      guildListSection.style.display = "none";
-      guildPanel.style.display = "block";
-      backButton.style.display = "inline-flex";
-      switchTab("moderation");
-      updateNavState();
-
-      await loadGuildPage();
-    }
-
-    window.addEventListener("popstate", loadRoute);
-
-    async function boot() {
-      await loadHealth();
-      const loggedIn = await loadMe();
-
-      if (loggedIn) {
-        await loadGuilds();
-        await loadRoute();
-      }
-    }
-
-    boot();
-  </script>
+  <script src="/app.js"></script>
 </body>
 </html>
