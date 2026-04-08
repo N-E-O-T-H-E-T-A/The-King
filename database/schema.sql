@@ -96,3 +96,26 @@ CREATE TABLE IF NOT EXISTS command_role_permissions (
 
 CREATE INDEX IF NOT EXISTS idx_command_role_permissions_guild_command
 ON command_role_permissions(guild_id, command_name);
+
+CREATE TABLE IF NOT EXISTS afk_status (
+  guild_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  reason TEXT,
+  since INTEGER NOT NULL,
+  PRIMARY KEY (guild_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS afk_mentions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  guild_id TEXT NOT NULL,
+  afk_user_id TEXT NOT NULL,
+  pinger_user_id TEXT NOT NULL,
+  channel_id TEXT NOT NULL,
+  message_id TEXT NOT NULL,
+  message_url TEXT NOT NULL,
+  message_preview TEXT,
+  created_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_afk_mentions_lookup
+ON afk_mentions(guild_id, afk_user_id, created_at DESC);
