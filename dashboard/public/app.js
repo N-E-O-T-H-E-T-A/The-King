@@ -943,7 +943,7 @@ const Dashboard = (() => {
           <label>Current Behavior</label>
           <div class="fieldHelp">
             This guild currently uses:
-            <strong>${esc(s.prefix || state.guild?.defaultPrefix || "default prefix")}</strong>
+           <strong>${esc((s.prefix && s.prefix.trim()) ? s.prefix : ",")}</strong>
           </div>
           <div class="fieldHelp">
             This affects prefix commands only.
