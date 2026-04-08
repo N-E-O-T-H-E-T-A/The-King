@@ -438,56 +438,56 @@ function startDashboard(client) {
   });
 
   app.post("/api/guild/:id/settings", requireAuth, requireGuildAccess, async (req, res) => {
-    const guildId = req.params.id;
-    const guild = client.guilds.cache.get(guildId);
+  const guildId = req.params.id;
+  const guild = client.guilds.cache.get(guildId);
 
-    if (!guild) {
-      return res.status(404).json({ error: "Guild not found" });
+  if (!guild) {
+    return res.status(404).json({ error: "Guild not found" });
+  }
+
+  const {
+    modLogChannelId,
+    purgeArchiveChannelId,
+    jailChannelId,
+    jailRoleId,
+    prefix,
+  } = req.body;
+
+  try {
+    if (modLogChannelId !== undefined) {
+      setModLogChannel(guildId, modLogChannelId || null);
     }
 
-   const {
-  modLogChannelId,
-  purgeArchiveChannelId,
-  jailChannelId,
-  jailRoleId,
-  prefix,
-} = req.body;
-
-    try {
-      if (modLogChannelId !== undefined) {
-        setModLogChannel(guildId, modLogChannelId || null);
-      }
-
-      if (purgeArchiveChannelId !== undefined) {
-        setPurgeArchiveChannel(guildId, purgeArchiveChannelId || null);
-      }
-
-      if (jailRoleId !== undefined) {
-        setJailRole(guildId, jailRoleId || null);
-      }
-
-      if (jailChannelId !== undefined) {
-        setJailChannel(guildId, jailChannelId || null);
-      }
-    
-      if (prefix !== undefined) {
-         const cleanedPrefix = String(prefix).trim();
-            setGuildPrefix(guildId, cleanedPrefix === "" ? null : cleanedPrefix);
-            }
-
-      return res.json({
-        ok: true,
-        settings: getGuildSettings(guildId),
-        jail: getJailSettings(guildId),
-      });
-    } catch (error) {
-      console.error("[DASHBOARD SAVE SETTINGS ERROR]", error);
-      return res.status(500).json({
-        ok: false,
-        error: "Failed to save settings",
-      });
+    if (purgeArchiveChannelId !== undefined) {
+      setPurgeArchiveChannel(guildId, purgeArchiveChannelId || null);
     }
-  });
+
+    if (jailRoleId !== undefined) {
+      setJailRole(guildId, jailRoleId || null);
+    }
+
+    if (jailChannelId !== undefined) {
+      setJailChannel(guildId, jailChannelId || null);
+    }
+
+    if (prefix !== undefined) {
+      const cleanedPrefix = String(prefix).trim();
+      setGuildPrefix(guildId, cleanedPrefix === "" ? null : cleanedPrefix);
+    }
+
+    return res.json({
+      ok: true,
+      settings: getGuildSettings(guildId),
+      jail: getJailSettings(guildId),
+    });
+  } catch (error) {
+    console.error("[DASHBOARD SAVE SETTINGS ERROR]", error);
+    return res.status(500).json({
+      ok: false,
+      error: error.message || "Failed to save settings",
+    });
+  }
+});
 
   app.get("/api/guild/:id/command-roles/:command", requireAuth, requireGuildAccess, (req, res) => {
     const guildId = req.params.id;

@@ -95,4 +95,5 @@ module.exports = {
   getGuildSettings,
   setModLogChannel,
   setPurgeArchiveChannel,
+  setGuildPrefix,
 };
