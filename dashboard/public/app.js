@@ -1,19 +1,31 @@
 const Dashboard = (() => {
-  const state = { me: null, guilds: [], guildId: null, guild: null };
+  const state = {
+    me: null,
+    guilds: [],
+    guildId: null,
+    guild: null,
+    rolePickerApi: null,
+  };
 
   const $ = (id) => document.getElementById(id);
-  const esc = (v) => String(v ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+
+  const esc = (v) =>
+    String(v ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
 
   const api = async (url, options = {}) => {
     const res = await fetch(url, options);
     const ct = res.headers.get("content-type") || "";
     const data = ct.includes("application/json") ? await res.json() : await res.text();
-    if (!res.ok) throw new Error(typeof data === "object" ? data.error || "Request failed" : data);
+
+    if (!res.ok) {
+      throw new Error(typeof data === "object" ? data.error || "Request failed" : data);
+    }
+
     return data;
   };
 
@@ -35,13 +47,22 @@ const Dashboard = (() => {
 
   const route = () => {
     const p = location.pathname.split("/").filter(Boolean);
-    if (p[0] === "guild" && p[1]) return { type: "guild", id: p[1], page: p[2] || "overview" };
+    if (p[0] === "guild" && p[1]) {
+      return { type: "guild", id: p[1], page: p[2] || "overview" };
+    }
     return { type: "home" };
   };
 
-  const go = (path) => { history.pushState({}, "", path); render(); };
+  const go = (path) => {
+    history.pushState({}, "", path);
+    render();
+  };
+
   const goHome = () => go("/");
-  const goGuildPage = (page, id = state.guildId) => id && go(`/guild/${id}/${page}`);
+  const goGuildPage = (page, id = state.guildId) => {
+    if (!id) return;
+    go(`/guild/${id}/${page}`);
+  };
 
   const setTop = (title, subtitle, crumb, save = false, back = false) => {
     $("pageTitle").textContent = title;
@@ -52,21 +73,30 @@ const Dashboard = (() => {
   };
 
   const setSaveStatus = (text, type = "") => {
-  const el = $("saveStatus");
-  if (!el) return;
-  el.textContent = text;
-  el.className = `saveStatus ${type}`.trim();
-};
+    const el = $("saveStatus");
+    if (!el) return;
+    el.textContent = text;
+    el.className = `saveStatus ${type}`.trim();
+  };
 
   const activeNav = (page = null) => {
     document.querySelectorAll(".navItem").forEach((n) => n.classList.remove("active"));
-    if (!page && location.pathname === "/") document.querySelector('.navItem[data-route="/"]')?.classList.add("active");
-    if (page) document.querySelector(`.navItem[data-page="${page}"]`)?.classList.add("active");
+
+    if (!page && location.pathname === "/") {
+      document.querySelector('.navItem[data-route="/"]')?.classList.add("active");
+    }
+
+    if (page) {
+      document.querySelector(`.navItem[data-page="${page}"]`)?.classList.add("active");
+    }
+
     $("guildNavGroup").style.display = state.guildId ? "flex" : "none";
   };
 
   const closeSelects = (except = null) => {
-    document.querySelectorAll(".customSelect").forEach((el) => { if (el !== except) el.classList.remove("open"); });
+    document.querySelectorAll(".customSelect").forEach((el) => {
+      if (el !== except) el.classList.remove("open");
+    });
   };
 
   const makeOption = (value, label, selected = null) => {
@@ -78,8 +108,10 @@ const Dashboard = (() => {
   };
 
   function buildSelect(id, onChange = null) {
-    const select = $(id), mount = $(`${id}_custom`);
+    const select = $(id);
+    const mount = $(`${id}_custom`);
     if (!select || !mount) return;
+
     const opts = [...select.options];
     const cur = opts[select.selectedIndex] || opts[0];
 
@@ -106,41 +138,49 @@ const Dashboard = (() => {
 
     const renderOpts = (q = "") => {
       q = q.trim().toLowerCase();
+
       list.innerHTML = opts
         .filter((o) => o.textContent.toLowerCase().includes(q))
-        .map((o) => `<button type="button" class="customSelectOption ${o.value === select.value ? "active" : ""}" data-value="${esc(o.value)}">${esc(o.textContent)}</button>`)
+        .map(
+          (o) =>
+            `<button type="button" class="customSelectOption ${o.value === select.value ? "active" : ""}" data-value="${esc(o.value)}">${esc(o.textContent)}</button>`
+        )
         .join("");
+
       list.querySelectorAll(".customSelectOption").forEach((btn) => {
         btn.onclick = () => {
           select.value = btn.dataset.value;
           value.textContent = btn.textContent;
           wrap.classList.remove("open");
-          onChange && onChange();
+          if (onChange) onChange();
         };
       });
     };
 
     renderOpts();
+
     trigger.onclick = () => {
       const open = wrap.classList.contains("open");
       closeSelects(wrap);
       wrap.classList.toggle("open", !open);
+
       if (!open) {
         search.value = "";
         renderOpts("");
         setTimeout(() => search.focus(), 0);
       }
     };
+
     search.oninput = () => renderOpts(search.value);
   }
 
   function buildMultiRolePicker(containerId, roles, selectedIds = [], onChange = null) {
     const mount = $(containerId);
-    if (!mount) return;
+    if (!mount) return null;
 
     let chosen = new Set(selectedIds);
 
-    const render = (filter = "") => {
+    const renderPicker = (filter = "") => {
       const q = filter.trim().toLowerCase();
       const visible = roles.filter((r) => r.name.toLowerCase().includes(q));
 
@@ -149,61 +189,78 @@ const Dashboard = (() => {
           <div class="rolePickerSearchWrap">
             <input id="rolePickerSearch" class="commandSearch" type="text" placeholder="Search roles..." value="${esc(filter)}" />
           </div>
-          <div class="rolePickerSelected" id="rolePickerSelected">
-            ${[...chosen].length
-              ? roles.filter((r) => chosen.has(r.id)).map((r) => `<button type="button" class="roleTag selected" data-role-remove="${esc(r.id)}">${esc(r.name)} ✕</button>`).join("")
-              : `<span class="emptyChip">No roles selected.</span>`}
+          <div class="rolePickerSelected">
+            ${
+              [...chosen].length
+                ? roles
+                    .filter((r) => chosen.has(r.id))
+                    .map(
+                      (r) =>
+                        `<button type="button" class="roleTag selected" data-role-remove="${esc(r.id)}">${esc(r.name)} ✕</button>`
+                    )
+                    .join("")
+                : `<span class="emptyChip">No roles selected.</span>`
+            }
           </div>
           <div class="rolePickerList">
-            ${visible.map((r) => `
-              <button
-                type="button"
-                class="rolePickerItem ${chosen.has(r.id) ? "active" : ""}"
-                data-role-id="${esc(r.id)}"
-              >
-                <span>${esc(r.name)}</span>
-                <span>${chosen.has(r.id) ? "Selected" : "Add"}</span>
-              </button>
-            `).join("")}
+            ${visible
+              .map(
+                (r) => `
+                <button
+                  type="button"
+                  class="rolePickerItem ${chosen.has(r.id) ? "active" : ""}"
+                  data-role-id="${esc(r.id)}"
+                >
+                  <span>${esc(r.name)}</span>
+                  <span>${chosen.has(r.id) ? "Selected" : "Add"}</span>
+                </button>
+              `
+              )
+              .join("")}
           </div>
         </div>
       `;
 
-      $("rolePickerSearch").oninput = (e) => render(e.target.value);
+      $("rolePickerSearch").oninput = (e) => renderPicker(e.target.value);
 
       mount.querySelectorAll("[data-role-id]").forEach((btn) => {
         btn.onclick = () => {
           const id = btn.dataset.roleId;
           if (chosen.has(id)) chosen.delete(id);
           else chosen.add(id);
-          render(filter);
-          onChange && onChange([...chosen]);
+          renderPicker(filter);
+          if (onChange) onChange([...chosen]);
         };
       });
 
       mount.querySelectorAll("[data-role-remove]").forEach((btn) => {
         btn.onclick = () => {
           chosen.delete(btn.dataset.roleRemove);
-          render(filter);
-          onChange && onChange([...chosen]);
+          renderPicker(filter);
+          if (onChange) onChange([...chosen]);
         };
       });
     };
 
-    render("");
+    renderPicker("");
+
     return {
       getValues: () => [...chosen],
       setValues: (vals) => {
         chosen = new Set(vals || []);
-        render("");
+        renderPicker("");
       },
     };
   }
 
-  document.addEventListener("click", (e) => { if (!e.target.closest(".customSelect")) closeSelects(); });
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".customSelect")) closeSelects();
+  });
 
   const fillSelect = (id, rows, selected, labelKey = "name", none = true, onChange = null) => {
     const s = $(id);
+    if (!s) return;
+
     s.innerHTML = "";
     if (none) s.appendChild(makeOption("", "None", selected));
     rows.forEach((r) => s.appendChild(makeOption(r.id, r[labelKey], selected)));
@@ -214,6 +271,7 @@ const Dashboard = (() => {
     $("authNotice").style.display = authed ? "none" : "block";
     $("loginButton").style.display = authed ? "none" : "inline-flex";
     $("userBadge").style.display = authed ? "flex" : "none";
+
     if (authed) {
       $("userName").textContent = user?.global_name || user?.username || "User";
       $("userAvatarInitial").textContent = (user?.global_name || user?.username || "U").charAt(0).toUpperCase();
@@ -228,8 +286,11 @@ const Dashboard = (() => {
   };
 
   const loadGuilds = async () => {
-    try { state.guilds = await api("/api/guilds"); }
-    catch { state.guilds = []; }
+    try {
+      state.guilds = await api("/api/guilds");
+    } catch {
+      state.guilds = [];
+    }
     renderGuildSwitcher();
   };
 
@@ -239,13 +300,16 @@ const Dashboard = (() => {
       mount.innerHTML = `<p class="emptyState">No available servers.</p>`;
       return;
     }
+
     mount.innerHTML = `<select id="guildSwitcherSelect" class="nativeHidden"></select><div id="guildSwitcherSelect_custom"></div>`;
     const s = $("guildSwitcherSelect");
     s.appendChild(makeOption("", "Select a server", state.guildId || ""));
     state.guilds.forEach((g) => s.appendChild(makeOption(g.id, g.name, state.guildId || "")));
+
     buildSelect("guildSwitcherSelect", () => {
       const id = $("guildSwitcherSelect").value;
-      id ? goGuildPage("overview", id) : goHome();
+      if (id) goGuildPage("overview", id);
+      else goHome();
     });
   };
 
@@ -264,36 +328,49 @@ const Dashboard = (() => {
     </div>
   `;
 
-  const tableRows = (rows) => rows.map((r, i) => `
-    <div class="tableRow">
-      <div class="rankBadge">${i + 1}</div>
-      <div>
-        <div>${esc(r.title)}</div>
-        <div class="tableMeta">${esc(r.sub || "")}</div>
+  const tableRows = (rows) =>
+    rows
+      .map(
+        (r, i) => `
+      <div class="tableRow">
+        <div class="rankBadge">${i + 1}</div>
+        <div>
+          <div>${esc(r.title)}</div>
+          <div class="tableMeta">${esc(r.sub || "")}</div>
+        </div>
+        <div class="tableValue">${esc(r.value ?? "")}</div>
       </div>
-      <div class="tableValue">${esc(r.value ?? "")}</div>
-    </div>
-  `).join("");
+    `
+      )
+      .join("");
 
   const linePath = (series) => {
-    const w = 1000, h = 260, pad = 24;
+    const w = 1000;
+    const h = 260;
+    const pad = 24;
     const vals = series.map((x) => Number(x.value || 0));
     const max = Math.max(...vals, 1);
-    return series.map((p, i) => {
-      const x = pad + (i * (w - pad * 2)) / Math.max(series.length - 1, 1);
-      const y = h - pad - ((Number(p.value || 0) / max) * (h - pad * 2));
-      return `${i ? "L" : "M"} ${x} ${y}`;
-    }).join(" ");
+
+    return series
+      .map((p, i) => {
+        const x = pad + (i * (w - pad * 2)) / Math.max(series.length - 1, 1);
+        const y = h - pad - (Number(p.value || 0) / max) * (h - pad * 2);
+        return `${i ? "L" : "M"} ${x} ${y}`;
+      })
+      .join(" ");
   };
 
   const chartSvg = (series) => {
-    const labels = series.map((s, i) => {
-      const x = 24 + (i * 952) / Math.max(series.length - 1, 1);
-      return `<text x="${x}" y="250" text-anchor="middle" fill="rgba(255,255,255,.45)" font-size="12">${esc((s.day || "").slice(5))}</text>`;
-    }).join("");
+    const labels = series
+      .map((s, i) => {
+        const x = 24 + (i * 952) / Math.max(series.length - 1, 1);
+        return `<text x="${x}" y="250" text-anchor="middle" fill="rgba(255,255,255,.45)" font-size="12">${esc((s.day || "").slice(5))}</text>`;
+      })
+      .join("");
+
     return `
       <svg viewBox="0 0 1000 260" class="realChart" preserveAspectRatio="none">
-        ${[1,2,3,4].map(i => `<line x1="24" y1="${i*50}" x2="976" y2="${i*50}" stroke="rgba(255,255,255,.05)" />`).join("")}
+        ${[1, 2, 3, 4].map((i) => `<line x1="24" y1="${i * 50}" x2="976" y2="${i * 50}" stroke="rgba(255,255,255,.05)" />`).join("")}
         <path d="${linePath(series)}" fill="none" stroke="url(#g)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></path>
         <defs>
           <linearGradient id="g" x1="0%" x2="100%">
@@ -308,6 +385,7 @@ const Dashboard = (() => {
 
   const heroHome = async () => {
     const h = await api("/api/health");
+
     return `
       <div class="heroPanel routeView">
         <div class="heroGlow"></div>
@@ -331,15 +409,17 @@ const Dashboard = (() => {
     setTop("Dashboard", "Choose a server to open its workspace and analytics.", "Dashboard", false, false);
     activeNav(null);
 
-    
-
     const cards = state.guilds.length
-      ? state.guilds.map((g) => `
+      ? state.guilds
+          .map(
+            (g) => `
           <div class="quickCard" onclick="Dashboard.goGuildPage('overview','${g.id}')">
             <h4>${esc(g.name)}</h4>
             <p>${g.memberCount ?? "?"} members · Open workspace overview</p>
           </div>
-        `).join("")
+        `
+          )
+          .join("")
       : `<p class="emptyState">No admin-accessible servers found.</p>`;
 
     $("viewRoot").innerHTML = `
@@ -361,7 +441,9 @@ const Dashboard = (() => {
   };
 
   const overview = async () => {
-    const g = state.guild, id = state.guildId;
+    const g = state.guild;
+    const id = state.guildId;
+
     const [summary, messages, channels, users, commands, moderation, voice] = await Promise.all([
       api(`/api/guild/${id}/analytics/summary?days=30`),
       api(`/api/guild/${id}/analytics/messages?days=30`),
@@ -404,13 +486,17 @@ const Dashboard = (() => {
                 </div>
               </div>
               <div class="tableList">
-                ${moderation.recent.length
-                  ? tableRows(moderation.recent.slice(0, 6).map((r) => ({
-                      title: `${r.actionType} → ${r.targetName}`,
-                      sub: `By ${r.moderatorName}${r.reason ? ` · ${r.reason}` : ""}`,
-                      value: new Date(r.createdAt).toLocaleDateString(),
-                    })))
-                  : `<p class="emptyState">No tracked actions yet.</p>`}
+                ${
+                  moderation.recent.length
+                    ? tableRows(
+                        moderation.recent.slice(0, 6).map((r) => ({
+                          title: `${r.actionType} → ${r.targetName}`,
+                          sub: `By ${r.moderatorName}${r.reason ? ` · ${r.reason}` : ""}`,
+                          value: new Date(r.createdAt).toLocaleDateString(),
+                        }))
+                      )
+                    : `<p class="emptyState">No tracked actions yet.</p>`
+                }
               </div>
             </div>
           </div>
@@ -467,6 +553,7 @@ const Dashboard = (() => {
   const moderationPage = () => {
     const g = state.guild;
     const s = g.settings || {};
+
     setTop("Moderation", "Configure moderation output channels and future enforcement tools.", `${g.guild.name} / Moderation`, true, true);
     activeNav("moderation");
 
@@ -497,6 +584,7 @@ const Dashboard = (() => {
   const jailPage = () => {
     const g = state.guild;
     const j = g.jail || {};
+
     setTop("Jail", "Manage jail role and jail channel behavior.", `${g.guild.name} / Jail`, true, true);
     activeNav("jail");
 
@@ -524,18 +612,18 @@ const Dashboard = (() => {
     fillSelect("jailRole", g.roles, j.jail_role_id || "");
   };
 
-  let rolePickerApi = null;
-
   const loadCommandRoles = async () => {
-    const commandName = $("commandSelect").value;
+    const commandName = $("commandSelect")?.value;
     if (!commandName) return;
+
     try {
       const data = await api(`/api/guild/${state.guildId}/command-roles/${encodeURIComponent(commandName)}`);
-      rolePickerApi = buildMultiRolePicker("rolePermissionsPicker", state.guild.roles, data.roleIds || []);
+      state.rolePickerApi = buildMultiRolePicker("rolePermissionsPicker", state.guild.roles, data.roleIds || []);
       $("selectedRoleCount").textContent = `${(data.roles || []).length} selected`;
-      $("selectedRoleChips").innerHTML = data.roles?.length
-        ? data.roles.map((r) => `<span class="roleChip">${esc(r.name)}</span>`).join("")
-        : `<span class="emptyChip">None configured.</span>`;
+      $("selectedRoleChips").innerHTML =
+        data.roles?.length
+          ? data.roles.map((r) => `<span class="roleChip">${esc(r.name)}</span>`).join("")
+          : `<span class="emptyChip">None configured.</span>`;
     } catch (e) {
       setSaveStatus(e.message || "Failed to load role permissions.", "error");
     }
@@ -543,6 +631,7 @@ const Dashboard = (() => {
 
   const rolePermissionsPage = async () => {
     const g = state.guild;
+
     setTop("Role Permissions", "Choose which roles are allowed to use selected commands.", `${g.guild.name} / Role Permissions`, false, true);
     activeNav("role-permissions");
 
@@ -592,31 +681,49 @@ const Dashboard = (() => {
     const list = $("commandsGrid");
 
     const rows = state.guild.commands.filter((cmd) => {
-      const hay = [cmd.name, cmd.description, ...(cmd.aliases || []), cmd.category, cmd.prefixUsage || "", cmd.slashUsage || "", cmd.options || ""].join(" ").toLowerCase();
+      const hay = [
+        cmd.name,
+        cmd.description,
+        ...(cmd.aliases || []),
+        cmd.category,
+        cmd.prefixUsage || "",
+        cmd.slashUsage || "",
+        cmd.options || "",
+      ]
+        .join(" ")
+        .toLowerCase();
+
       return (category === "all" || cmd.category === category) && (!search || hay.includes(search));
     });
 
-    list.innerHTML = rows.length ? rows.map((cmd) => `
-      <div class="commandCard">
-        <div class="commandHeader">
-          <div>
-            <h4>${esc(cmd.name)}</h4>
-            <p>${esc(cmd.description || "No description provided.")}</p>
+    list.innerHTML = rows.length
+      ? rows
+          .map(
+            (cmd) => `
+        <div class="commandCard">
+          <div class="commandHeader">
+            <div>
+              <h4>${esc(cmd.name)}</h4>
+              <p>${esc(cmd.description || "No description provided.")}</p>
+            </div>
+            <span class="categoryBadge">${esc(cmd.category)}</span>
           </div>
-          <span class="categoryBadge">${esc(cmd.category)}</span>
+          <div class="commandMetaGrid">
+            <div class="commandMetaItem"><span class="metaLabel">Prefix</span><code>${esc(cmd.prefixUsage || "Not available")}</code></div>
+            <div class="commandMetaItem"><span class="metaLabel">Slash</span><code>${esc(cmd.slashUsage || "Not available")}</code></div>
+            <div class="commandMetaItem"><span class="metaLabel">Aliases</span><span>${cmd.aliases?.length ? esc(cmd.aliases.join(", ")) : "None"}</span></div>
+            <div class="commandMetaItem"><span class="metaLabel">Options</span><span>${esc(cmd.options || "No options")}</span></div>
+          </div>
         </div>
-        <div class="commandMetaGrid">
-          <div class="commandMetaItem"><span class="metaLabel">Prefix</span><code>${esc(cmd.prefixUsage || "Not available")}</code></div>
-          <div class="commandMetaItem"><span class="metaLabel">Slash</span><code>${esc(cmd.slashUsage || "Not available")}</code></div>
-          <div class="commandMetaItem"><span class="metaLabel">Aliases</span><span>${cmd.aliases?.length ? esc(cmd.aliases.join(", ")) : "None"}</span></div>
-          <div class="commandMetaItem"><span class="metaLabel">Options</span><span>${esc(cmd.options || "No options")}</span></div>
-        </div>
-      </div>
-    `).join("") : `<p class="emptyState">No commands matched that filter.</p>`;
+      `
+          )
+          .join("")
+      : `<p class="emptyState">No commands matched that filter.</p>`;
   };
 
   const commandsPage = () => {
     const g = state.guild;
+
     setTop("Commands", "Browse loaded commands, usage, aliases, and categories.", `${g.guild.name} / Commands`, false, true);
     activeNav("commands");
 
@@ -632,12 +739,14 @@ const Dashboard = (() => {
     `;
 
     $("commandSearch").oninput = renderCommandsGrid;
+
     const s = $("commandCategoryFilter");
     s.innerHTML = "";
     s.appendChild(makeOption("all", "All Categories", "all"));
-    [...new Set(state.guild.commands.map((c) => c.category).filter(Boolean))].sort().forEach((cat) => {
-      s.appendChild(makeOption(cat, cat, "all"));
-    });
+    [...new Set(state.guild.commands.map((c) => c.category).filter(Boolean))]
+      .sort()
+      .forEach((cat) => s.appendChild(makeOption(cat, cat, "all")));
+
     buildSelect("commandCategoryFilter", renderCommandsGrid);
     renderCommandsGrid();
   };
@@ -645,13 +754,13 @@ const Dashboard = (() => {
   const analyticsPage = async () => {
     const g = state.guild;
     const id = state.guildId;
-    const [summary, messages, channels, users, commands, moderation, voice] = await Promise.all([
+
+    const [summary, messages, channels, users, commands, voice] = await Promise.all([
       api(`/api/guild/${id}/analytics/summary?days=30`),
       api(`/api/guild/${id}/analytics/messages?days=30`),
       api(`/api/guild/${id}/analytics/channels?days=30`),
       api(`/api/guild/${id}/analytics/users?days=30`),
       api(`/api/guild/${id}/analytics/commands?days=30`),
-      api(`/api/guild/${id}/analytics/moderation?days=30`),
       api(`/api/guild/${id}/analytics/voice?days=30`),
     ]);
 
@@ -751,13 +860,17 @@ const Dashboard = (() => {
             </div>
           </div>
           <div class="tableList">
-            ${moderation.recent.length
-              ? tableRows(moderation.recent.map((r) => ({
-                  title: `${r.actionType} → ${r.targetName}`,
-                  sub: `By ${r.moderatorName}${r.reason ? ` · ${r.reason}` : ""}`,
-                  value: new Date(r.createdAt).toLocaleString(),
-                })))
-              : `<p class="emptyState">No moderation logs yet.</p>`}
+            ${
+              moderation.recent.length
+                ? tableRows(
+                    moderation.recent.map((r) => ({
+                      title: `${r.actionType} → ${r.targetName}`,
+                      sub: `By ${r.moderatorName}${r.reason ? ` · ${r.reason}` : ""}`,
+                      value: new Date(r.createdAt).toLocaleString(),
+                    }))
+                  )
+                : `<p class="emptyState">No moderation logs yet.</p>`
+            }
           </div>
         </div>
       </div>
@@ -766,6 +879,7 @@ const Dashboard = (() => {
 
   const automationPage = () => {
     const g = state.guild;
+
     setTop("Automation", "Future automation center for reminders, workflows, and moderation systems.", `${g.guild.name} / Automation`, false, true);
     activeNav("automation");
 
@@ -800,6 +914,7 @@ const Dashboard = (() => {
 
   const settingsPage = () => {
     const g = state.guild;
+
     setTop("Settings", "Combined guild system overview and workspace routing.", `${g.guild.name} / Settings`, false, true);
     activeNav("settings");
 
@@ -817,61 +932,102 @@ const Dashboard = (() => {
 
   const saveGuildSettings = async (page) => {
     const payload = {};
+
     if (page === "moderation") {
-      payload.modLogChannelId = $("modLogChannel").value || null;
-      payload.purgeArchiveChannelId = $("purgeArchiveChannel").value || null;
+      payload.modLogChannelId = $("modLogChannel")?.value || null;
+      payload.purgeArchiveChannelId = $("purgeArchiveChannel")?.value || null;
     }
+
     if (page === "jail") {
-      payload.jailChannelId = $("jailChannel").value || null;
-      payload.jailRoleId = $("jailRole").value || null;
+      payload.jailChannelId = $("jailChannel")?.value || null;
+      payload.jailRoleId = $("jailRole")?.value || null;
     }
 
     setSaveStatus("Saving settings...");
+
     try {
       await api(`/api/guild/${state.guildId}/settings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      setSaveStatus("Saved successfully.", "success");
+
       await loadGuild(state.guildId);
+
+      if (page === "moderation") moderationPage();
+      if (page === "jail") jailPage();
+
+      setSaveStatus("Saved successfully.", "success");
     } catch (e) {
       setSaveStatus(e.message || "Failed to save settings.", "error");
     }
   };
 
   const saveCommandRoles = async () => {
-    const commandName = $("commandSelect").value;
-    if (!commandName) return setSaveStatus("Choose a command first.", "error");
+    const commandName = $("commandSelect")?.value;
+    if (!commandName) {
+      setSaveStatus("Choose a command first.", "error");
+      return;
+    }
+
     setSaveStatus("Saving role permissions...");
+
     try {
       await api(`/api/guild/${state.guildId}/command-roles/${encodeURIComponent(commandName)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ roleIds: rolePickerApi ? rolePickerApi.getValues() : [] }),
+        body: JSON.stringify({ roleIds: state.rolePickerApi ? state.rolePickerApi.getValues() : [] }),
       });
-      setSaveStatus(`Saved role permissions for ${commandName}.`, "success");
+
       await loadCommandRoles();
+      setSaveStatus(`Saved role permissions for ${commandName}.`, "success");
     } catch (e) {
       setSaveStatus(e.message || "Failed to save role permissions.", "error");
     }
   };
 
   const clearCommandRoles = async () => {
-    const commandName = $("commandSelect").value;
-    if (!commandName) return setSaveStatus("Choose a command first.", "error");
+    const commandName = $("commandSelect")?.value;
+    if (!commandName) {
+      setSaveStatus("Choose a command first.", "error");
+      return;
+    }
+
     setSaveStatus("Clearing role permissions...");
+
     try {
-      await api(`/api/guild/${state.guildId}/command-roles/${encodeURIComponent(commandName)}`, { method: "DELETE" });
-      setSaveStatus(`Cleared role permissions for ${commandName}.`, "success");
+      await api(`/api/guild/${state.guildId}/command-roles/${encodeURIComponent(commandName)}`, {
+        method: "DELETE",
+      });
+
       await loadCommandRoles();
+      setSaveStatus(`Cleared role permissions for ${commandName}.`, "success");
     } catch (e) {
       setSaveStatus(e.message || "Failed to clear role permissions.", "error");
     }
   };
 
+  const saveCurrentPage = async () => {
+    const r = route();
+
+    if (r.type !== "guild") return;
+
+    if (r.page === "moderation") {
+      await saveGuildSettings("moderation");
+      return;
+    }
+
+    if (r.page === "jail") {
+      await saveGuildSettings("jail");
+      return;
+    }
+
+    setSaveStatus("This page does not support Save Changes.", "error");
+  };
+
   const render = async () => {
     const authed = await loadMe();
+
     if (!authed) {
       state.guildId = null;
       state.guild = null;
@@ -892,6 +1048,7 @@ const Dashboard = (() => {
 
     try {
       await loadGuild(r.id);
+
       if (r.page === "overview") return overview();
       if (r.page === "moderation") return moderationPage();
       if (r.page === "jail") return jailPage();
@@ -901,6 +1058,7 @@ const Dashboard = (() => {
       if (r.page === "logs") return logsPage();
       if (r.page === "automation") return automationPage();
       if (r.page === "settings") return settingsPage();
+
       return goGuildPage("overview", r.id);
     } catch (e) {
       $("viewRoot").innerHTML = `
@@ -913,21 +1071,19 @@ const Dashboard = (() => {
     }
   };
 
-  const saveCurrentPage = () => {
-    const r = route();
-    if (r.type !== "guild") return;
-    if (r.page === "moderation") return saveGuildSettings("moderation");
-    if (r.page === "jail") return saveGuildSettings("jail");
-  };
-
   window.addEventListener("popstate", render);
 
   return {
     init: render,
     goHome,
     goGuildPage,
-    loginWithDiscord: () => { location.href = "/auth/login"; },
-    logout: async () => { await fetch("/auth/logout", { method: "POST" }); location.href = "/"; },
+    loginWithDiscord: () => {
+      location.href = "/auth/login";
+    },
+    logout: async () => {
+      await fetch("/auth/logout", { method: "POST" });
+      location.href = "/";
+    },
     saveCurrentPage,
     saveCommandRoles,
     clearCommandRoles,
