@@ -975,7 +975,8 @@ const Dashboard = (() => {
   }
 
   if (page === "settings") {
-    payload.prefix = $("guildPrefix")?.value?.trim() || null;
+    const rawPrefix = $("guildPrefix")?.value ?? "";
+payload.prefix = rawPrefix.trim();
   }
 
 

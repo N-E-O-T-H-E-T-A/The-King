@@ -469,6 +469,11 @@ function startDashboard(client) {
       if (jailChannelId !== undefined) {
         setJailChannel(guildId, jailChannelId || null);
       }
+    
+      if (prefix !== undefined) {
+         const cleanedPrefix = String(prefix).trim();
+            setGuildPrefix(guildId, cleanedPrefix === "" ? null : cleanedPrefix);
+            }
 
       return res.json({
         ok: true,
