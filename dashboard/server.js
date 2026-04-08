@@ -3,14 +3,6 @@ const session = require("express-session");
 const path = require("node:path");
 const crypto = require("node:crypto");
 
-console.log("ENV CHECK", {
-  CLIENT_ID: !!process.env.CLIENT_ID,
-  CLIENT_SECRET: !!process.env.CLIENT_SECRET,
-  SESSION_SECRET: !!process.env.SESSION_SECRET,
-  DASHBOARD_REDIRECT_URI: process.env.DASHBOARD_REDIRECT_URI,
-  PORT: process.env.PORT,
-});
-
 const {
   getGuildSettings,
   setModLogChannel,
@@ -36,7 +28,8 @@ function startDashboard(client) {
 
   const clientId = process.env.CLIENT_ID;
   const clientSecret = process.env.CLIENT_SECRET;
-  const redirectUri = process.env.DASHBOARD_REDIRECT_URI || `http://localhost:${port}/auth/callback`;
+  const redirectUri =
+    process.env.DASHBOARD_REDIRECT_URI || `http://localhost:${port}/auth/callback`;
   const sessionSecret = process.env.SESSION_SECRET;
 
   if (!clientId || !clientSecret || !sessionSecret) {
@@ -45,6 +38,7 @@ function startDashboard(client) {
 
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
+
   app.use(
     session({
       name: "the_king_dashboard",
@@ -121,7 +115,7 @@ function startDashboard(client) {
     });
 
     if (!response.ok) {
-      const text = await response.text();
+      const text = await response.text().catch(() => "");
       throw new Error(`Token exchange failed: ${response.status} ${text}`);
     }
 
@@ -136,7 +130,8 @@ function startDashboard(client) {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch user: ${response.status}`);
+      const text = await response.text().catch(() => "");
+      throw new Error(`Failed to fetch user: ${response.status} ${text}`);
     }
 
     return response.json();
@@ -150,7 +145,8 @@ function startDashboard(client) {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch guilds: ${response.status}`);
+      const text = await response.text().catch(() => "");
+      throw new Error(`Failed to fetch guilds: ${response.status} ${text}`);
     }
 
     return response.json();
@@ -158,6 +154,16 @@ function startDashboard(client) {
 
   async function getAuthorizedGuilds(req) {
     if (!req.session?.discordAccessToken) return [];
+
+    const now = Date.now();
+    const cacheTtlMs = 60 * 1000;
+
+    if (
+      req.session.authorizedGuildsCache &&
+      req.session.authorizedGuildsCache.expiresAt > now
+    ) {
+      return req.session.authorizedGuildsCache.guilds;
+    }
 
     const userGuilds = await fetchDiscordGuilds(req.session.discordAccessToken);
 
@@ -179,6 +185,11 @@ function startDashboard(client) {
         };
       })
       .sort((a, b) => a.name.localeCompare(b.name));
+
+    req.session.authorizedGuildsCache = {
+      guilds: visibleGuilds,
+      expiresAt: now + cacheTtlMs,
+    };
 
     return visibleGuilds;
   }
@@ -244,7 +255,7 @@ function startDashboard(client) {
         global_name: user.global_name || null,
         avatar: user.avatar || null,
       };
-
+      req.session.authorizedGuildsCache = null;
       delete req.session.oauthState;
 
       res.redirect("/");
@@ -262,6 +273,7 @@ function startDashboard(client) {
 
   app.get("/api/me", (req, res) => {
     const user = req.session?.discordUser || null;
+
     res.json({
       authenticated: Boolean(user),
       user,
@@ -433,6 +445,7 @@ function startDashboard(client) {
 
     try {
       const cleanedRoleIds = roleIds.filter((id) => guild.roles.cache.has(id));
+
       setAllowedRoleIds(guildId, commandName, cleanedRoleIds);
 
       return res.json({
@@ -485,8 +498,8 @@ function startDashboard(client) {
   });
 
   app.listen(port, "0.0.0.0", () => {
-  console.log(`🌐 Dashboard running on port ${port}`);
-});
+    console.log(`🌐 Dashboard running on port ${port}`);
+  });
 }
 
 module.exports = { startDashboard };
