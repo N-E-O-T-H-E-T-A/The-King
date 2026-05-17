@@ -5,6 +5,19 @@ const {
   getBlockedWords,
 } = require("../../../helpers/database/blockedWords");
 
+function parseQuotedArgs(input) {
+  const matches = input.match(/"([^"]+)"|'([^']+)'|\S+/g) || [];
+  return matches.map((token) => {
+    if (
+      (token.startsWith('"') && token.endsWith('"')) ||
+      (token.startsWith("'") && token.endsWith("'"))
+    ) {
+      return token.slice(1, -1);
+    }
+    return token;
+  });
+}
+
 module.exports = {
   name: "filterword",
   description: "Add, remove, or list mirrored filter words.",
@@ -28,7 +41,7 @@ module.exports = {
     {
       name: "word",
       type: "string",
-      description: "Word to add or remove",
+      description: "Word or phrase to add or remove",
       required: false,
     },
   ],
@@ -44,8 +57,9 @@ module.exports = {
       mode = String(ctx.getString("mode") || "").toLowerCase();
       word = ctx.getString("word", null);
     } else {
-      mode = String(ctx.args[0] || "list").toLowerCase();
-      word = ctx.args[1] || null;
+      const parsed = parseQuotedArgs(ctx.args.join(" "));
+      mode = String(parsed[0] || "list").toLowerCase();
+      word = parsed.slice(1).join(" ") || null;
     }
 
     if (mode === "list") {
@@ -61,27 +75,27 @@ module.exports = {
     }
 
     if (!word) {
-      return ctx.reply("Provide a word.");
+      return ctx.reply("Provide a word or phrase.");
     }
 
     if (mode === "add") {
       const added = addBlockedWord(ctx.guild.id, word);
 
       if (!added) {
-        return ctx.reply("That word is invalid.");
+        return ctx.reply("That word or phrase is invalid.");
       }
 
-      return ctx.reply(`Added blocked word: \`${added}\``);
+      return ctx.reply(`Added blocked word/phrase: \`${added}\``);
     }
 
     if (mode === "remove") {
       const removed = removeBlockedWord(ctx.guild.id, word);
 
       if (!removed) {
-        return ctx.reply("That word was not found.");
+        return ctx.reply("That word or phrase was not found.");
       }
 
-      return ctx.reply(`Removed blocked word: \`${String(word).toLowerCase()}\``);
+      return ctx.reply(`Removed blocked word/phrase: \`${String(word).toLowerCase()}\``);
     }
 
     return ctx.reply("Mode must be `add`, `remove`, or `list`.");
