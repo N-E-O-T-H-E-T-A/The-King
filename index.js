@@ -18,6 +18,7 @@ const initDatabase = require("./database/init");
 const { restoreTempBans } = require("./structures/helpers/tempBanScheduler");
 const { buildHelpMap } = require("./structures/helpers/buildHelpData");
 const { canUseCommandByConfiguredRoles } = require("./structures/helpers/commandRoleAccess");
+const { registerMessageMirrorFilter } = require("./structures/helpers/messageMirrorFilter");
 const {
   ensureAnalyticsTables,
   recordCommandUse,
