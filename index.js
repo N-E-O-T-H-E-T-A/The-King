@@ -26,6 +26,8 @@ const {
 } = require("./structures/helpers/database/analytics");
 const { getGuildSettings } = require("./structures/helpers/database/guildSettings");
 
+
+
 const TOKEN = process.env.DISCORD_TOKEN;
 const PREFIX = process.env.PREFIX || "tk";
 
@@ -530,6 +532,8 @@ ensureAnalyticsTables();
 loadCommands();
 loadEvents();
 loadFeatures();
+
+registerMessageMirrorFilter(client);
 
 startCloudflareTunnel();
 
