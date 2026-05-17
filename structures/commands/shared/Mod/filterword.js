@@ -7,15 +7,20 @@ const {
 
 function parseQuotedArgs(input) {
   const matches = input.match(/"([^"]+)"|'([^']+)'|\S+/g) || [];
-  return matches.map((token) => {
-    if (
-      (token.startsWith('"') && token.endsWith('"')) ||
-      (token.startsWith("'") && token.endsWith("'"))
-    ) {
-      return token.slice(1, -1);
-    }
-    return token;
-  });
+  return matches.map((token) => stripWrappingQuotes(token));
+}
+
+function stripWrappingQuotes(value) {
+  const text = String(value || "").trim();
+
+  if (
+    (text.startsWith('"') && text.endsWith('"')) ||
+    (text.startsWith("'") && text.endsWith("'"))
+  ) {
+    return text.slice(1, -1).trim();
+  }
+
+  return text;
 }
 
 module.exports = {
@@ -55,11 +60,11 @@ module.exports = {
 
     if (ctx.isSlash) {
       mode = String(ctx.getString("mode") || "").toLowerCase();
-      word = ctx.getString("word", null);
+      word = stripWrappingQuotes(ctx.getString("word", null));
     } else {
       const parsed = parseQuotedArgs(ctx.args.join(" "));
       mode = String(parsed[0] || "list").toLowerCase();
-      word = parsed.slice(1).join(" ") || null;
+      word = stripWrappingQuotes(parsed.slice(1).join(" ")) || null;
     }
 
     if (mode === "list") {
@@ -95,7 +100,7 @@ module.exports = {
         return ctx.reply("That word or phrase was not found.");
       }
 
-      return ctx.reply(`Removed blocked word/phrase: \`${String(word).toLowerCase()}\``);
+      return ctx.reply(`Removed blocked word/phrase: \`${word.toLowerCase()}\``);
     }
 
     return ctx.reply("Mode must be `add`, `remove`, or `list`.");
